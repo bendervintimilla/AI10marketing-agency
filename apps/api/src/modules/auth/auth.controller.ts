@@ -114,28 +114,26 @@ export async function handleOAuthLogin(profile: {
     providerId: string;
 }): Promise<{ token: string; refreshToken: string; user: any }> {
     // Check if user already exists by email
-    let user = mockUsers.find(u => u.email === profile.email);
+    let user: any = await prisma.user.findUnique({ where: { email: profile.email } });
 
     if (!user) {
         // Auto-register the user with OAuth
-        const newOrg = { id: `org_${Date.now()}`, name: `${profile.name}'s Org` };
-        user = {
-            id: `usr_${Date.now()}`,
-            email: profile.email,
-            password: null, // No password for OAuth users
-            orgId: newOrg.id,
-            role: 'ADMIN',
-            name: profile.name,
-            picture: profile.picture,
-            provider: profile.provider,
-            providerId: profile.providerId,
-        };
-        mockOrgs.push(newOrg);
-        mockUsers.push(user);
+        const org = await prisma.organization.create({
+            data: { name: `${profile.name}'s Org` },
+        });
+        user = await prisma.user.create({
+            data: {
+                email: profile.email,
+                passwordHash: '', // OAuth users have no password
+                name: profile.name,
+                role: 'OWNER',
+                organizationId: org.id,
+            },
+        });
         console.log(`[auth] Created OAuth user: ${profile.email} via ${profile.provider}`);
     }
 
-    const payload = { userId: user.id, email: user.email, orgId: user.orgId, role: user.role, name: user.name || profile.name };
+    const payload = { userId: user.id, email: user.email, orgId: user.organizationId, role: user.role, name: user.name || profile.name };
     const token = AuthService.generateToken(payload);
     const refreshToken = AuthService.generateRefreshToken();
 
