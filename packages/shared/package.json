@@ -1,0 +1,17 @@
+{
+    "name": "@agency/shared",
+    "version": "1.0.0",
+    "main": "dist/index.js",
+    "types": "src/index.ts",
+    "scripts": {
+        "build": "tsc --project tsconfig.build.json",
+        "lint": "eslint \"src/**/*.ts*\"",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "typescript": "^5.4.5"
+    }
+}

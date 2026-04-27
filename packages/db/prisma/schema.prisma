@@ -1,0 +1,504 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  MEMBER
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum Platform {
+  INSTAGRAM
+  TIKTOK
+  FACEBOOK
+}
+
+enum PublishStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+enum AdStatus {
+  GENERATING
+  QUEUED
+  READY
+  FAILED
+  PUBLISHED
+  SCHEDULED
+  PAUSED
+  REMOVED
+}
+
+
+enum GenerationType {
+  VIDEO
+  IMAGE
+}
+
+enum AdFormat {
+  REEL
+  STORY
+  POST
+  CAROUSEL
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+  LOGO
+  PRODUCT_PHOTO
+}
+
+enum CampaignGoal {
+  AWARENESS
+  ENGAGEMENT
+  CONVERSION
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum RecType {
+  SCHEDULE
+  PAUSE
+  REMOVE
+  CAPTION
+  HASHTAG
+  BUDGET
+  IMPROVE
+  HASHTAG_REFRESH
+  BUDGET_REALLOCATION
+}
+
+enum RecStatus {
+  PENDING
+  ACCEPTED
+  DISMISSED
+  EXECUTED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum NotificationType {
+  PAYMENT_FAILED
+  BILLING_ALERT
+  CAMPAIGN_UPDATE
+  AD_READY
+  GENERAL
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model Organization {
+  id               String           @id @default(cuid())
+  name             String
+  industry         String?
+  logoUrl          String?
+  plan             String           @default("FREE")
+  stripeCustomerId String?
+  autoPilot        Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  users             User[]
+  campaigns         Campaign[]
+  mediaAssets       MediaAsset[]
+  brands            Brand[]
+  socialAccounts    SocialAccount[]
+  aiRecommendations AIRecommendation[]
+  subscriptions     Subscription[]
+  usageRecords      UsageRecord[]
+  notifications     Notification[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String?
+  role           Role     @default(MEMBER)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  notifications  Notification[]
+
+  @@index([organizationId])
+}
+
+model Brand {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  colors          Json?
+  fonts           Json?
+  voiceTone       String?
+  targetAudience  String?
+  description     String?
+  // Social/web identifiers used by audit pipeline
+  instagramHandle String?  // e.g. "@negroni_gye"
+  instagramUserId String?  // Meta IG Business Account ID
+  websiteUrl      String?
+  metaAdAccountId String?  // act_XXXXXXXXX
+  googleAdsCustomerId String?
+  tiktokAdvertiserId  String?
+  followerCount   Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ads            Ad[]
+  auditRuns      AuditRun[]
+  auditSchedules AuditSchedule[]
+
+  @@index([organizationId])
+}
+
+model Campaign {
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  organizationId String
+  goal           CampaignGoal   @default(AWARENESS)
+  status         CampaignStatus @default(DRAFT)
+  startDate      DateTime?
+  endDate        DateTime?
+  budget         Float?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ads            Ad[]
+
+  @@index([organizationId])
+}
+
+model Ad {
+  id                String         @id @default(cuid())
+  campaignId        String
+  brandId           String?
+  name              String
+  platform          Platform
+  format            AdFormat       @default(REEL)
+  generationType    GenerationType @default(VIDEO)
+  status            AdStatus       @default(GENERATING)
+
+  // Generated asset URLs
+  generatedVideoUrl String?
+  generatedImageUrl String?
+  s3Key             String?
+  thumbnailUrl      String?
+  thumbnailS3Key    String?
+
+  // Caption & hashtags (from spec)
+  caption           String?
+  hashtags          String[]
+
+  // Prompt tracking
+  creativeBrief     String?
+  visualPrompt      String?
+  promptMetadata    Json?
+  style             String?
+
+  // BullMQ job tracking
+  jobId             String?  @unique
+
+  // Scheduling & publishing
+  scheduledAt       DateTime?
+  publishedAt       DateTime?
+  externalPostId    String?
+
+  // Version history
+  previousVersionId String?
+  previousVersion   Ad?      @relation("AdVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersions      Ad[]     @relation("AdVersionHistory")
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  campaign          Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  brand             Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  variants          AdVariant[]
+  analytics         AnalyticsSnapshot[]
+  recommendations   AIRecommendation[]
+
+  @@index([campaignId])
+  @@index([campaignId, status])
+  @@index([jobId])
+  @@index([brandId])
+}
+
+model AdVariant {
+  id            String        @id @default(cuid())
+  adId          String
+  mediaAssetId  String
+  copy          String
+  caption       String?
+  hashtags      String[]
+  publishStatus PublishStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  ad            Ad            @relation(fields: [adId], references: [id], onDelete: Cascade)
+  mediaAsset    MediaAsset    @relation(fields: [mediaAssetId], references: [id])
+}
+
+model MediaAsset {
+  id             String    @id @default(cuid())
+  organizationId String
+  type           AssetType @default(IMAGE)
+  url            String
+  s3Key          String
+  filename       String?
+  fileType       String?
+  thumbnailUrl   String?
+  metadata       Json?
+  tags           String[]
+  deletedAt      DateTime?
+  uploadedAt     DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  variants       AdVariant[]
+
+  @@index([organizationId])
+  @@index([organizationId, type])
+}
+
+model AnalyticsSnapshot {
+  id          String   @id @default(cuid())
+  adId        String
+  fetchedAt   DateTime @default(now())
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  likes       Int      @default(0)
+  comments    Int      @default(0)
+  shares      Int      @default(0)
+  saves       Int      @default(0)
+  ctr         Float    @default(0)
+  cpm         Float    @default(0)
+  spent       Float    @default(0)
+
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@index([adId])
+  @@index([adId, fetchedAt])
+}
+
+model AIRecommendation {
+  id             String    @id @default(cuid())
+  organizationId String
+  campaignId     String?
+  adId           String?
+  type           RecType
+  payload        Json
+  status         RecStatus @default(PENDING)
+  title          String    @default("")
+  reasoning      String    @default("")
+  confidence     Float     @default(0.5)
+  executedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ad             Ad?          @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+
+  @@index([adId])
+}
+
+model SocialAccount {
+  id             String   @id @default(cuid())
+  organizationId String
+  platform       Platform
+  accessToken    String
+  refreshToken   String?
+  expiresAt      DateTime?
+  accountName    String
+  accountId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, platform])
+  @@index([organizationId])
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String?
+  type           String
+  title          String
+  message        String
+  payload        Json?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, readAt])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String
+  stripeSubscriptionId String             @unique
+  stripePriceId        String
+  plan                 String
+  status               String             @default("ACTIVE")
+  cancelAtPeriodEnd    Boolean            @default(false)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model UsageRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  month          Int
+  year           Int
+  adsGenerated   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, month, year])
+  @@index([organizationId])
+}
+
+model HashtagCache {
+  id        String   @id @default(cuid())
+  platform  Platform
+  industry  String
+  hashtags  Json
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+
+  @@unique([platform, industry])
+  @@index([platform, industry])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Audit System (claude-ads integration)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AuditPlatform {
+  INSTAGRAM
+  META
+  GOOGLE
+  TIKTOK
+  YOUTUBE
+  LANDING
+  PORTFOLIO
+}
+
+enum AuditStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum CheckStatus {
+  PASS
+  WARNING
+  FAIL
+  NA
+}
+
+model AuditRun {
+  id             String        @id @default(cuid())
+  brandId        String
+  brand          Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platform       AuditPlatform
+  status         AuditStatus   @default(QUEUED)
+  score          Float?        // 0-100
+  grade          String?       // A | B | C | D | F
+  summary        Json?         // category scores + top findings
+  errorMessage   String?
+  startedAt      DateTime      @default(now())
+  completedAt    DateTime?
+  durationMs     Int?
+  triggeredBy    String?       // userId, null if scheduled
+
+  checks         AuditCheck[]
+  report         AuditReport?
+
+  @@index([brandId, platform, startedAt])
+  @@index([status])
+}
+
+model AuditCheck {
+  id             String      @id @default(cuid())
+  auditRunId     String
+  auditRun       AuditRun    @relation(fields: [auditRunId], references: [id], onDelete: Cascade)
+  checkId        String      // e.g. "IG-C1"
+  category       String      // "Content & Creative"
+  status         CheckStatus
+  severity       String      // critical | high | medium | low
+  message        String
+  evidence       Json?
+  recommendation String?
+
+  @@index([auditRunId])
+  @@index([checkId])
+}
+
+model AuditReport {
+  id          String   @id @default(cuid())
+  auditRunId  String   @unique
+  auditRun    AuditRun @relation(fields: [auditRunId], references: [id], onDelete: Cascade)
+  markdown    String   @db.Text
+  pdfUrl      String?
+  generatedAt DateTime @default(now())
+}
+
+model AuditSchedule {
+  id        String        @id @default(cuid())
+  brandId   String
+  brand     Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platform  AuditPlatform
+  cron      String        // "0 9 * * 1"
+  enabled   Boolean       @default(true)
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([enabled, nextRunAt])
+}

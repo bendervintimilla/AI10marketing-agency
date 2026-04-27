@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Brand CSS Variables (white-label ready) ─── */
+:root {
+  /* Brand palette – violet/purple inspired */
+  --brand-50: #f5f3ff;
+  --brand-100: #ede9fe;
+  --brand-200: #ddd6fe;
+  --brand-300: #c4b5fd;
+  --brand-400: #a78bfa;
+  --brand-500: #8b5cf6;
+  --brand-600: #7c3aed;
+  --brand-700: #6d28d9;
+  --brand-800: #5b21b6;
+  --brand-900: #4c1d95;
+
+  /* Semantic tokens */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* Sidebar width */
+  --sidebar-width: 256px;
+  --sidebar-collapsed-width: 72px;
+
+  /* Toast z-index */
+  --z-toast: 9000;
+  --z-modal: 8000;
+  --z-dropdown: 7000;
+  --z-sidebar: 6000;
+}
+
+.dark {
+  --color-bg: #0f0a1e;
+  --color-bg-subtle: #1a1030;
+  --color-surface: #1e1535;
+  --color-surface-raised: #2a1f45;
+  --color-border: #2d2050;
+  --color-border-strong: #3d2f6a;
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #64748b;
+}
+
+/* ─── Base Styles ─── */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ─── Utilities ─── */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass {
+    background: rgba(15, 10, 30, 0.6);
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, var(--brand-400), #e879f9, var(--brand-300));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-brand-gradient {
+    background: linear-gradient(135deg, var(--brand-600), var(--brand-800));
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-raised) 25%,
+      var(--color-border) 50%,
+      var(--color-surface-raised) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .border-border {
+    border-color: var(--color-border);
+  }
+}
+
+/* ─── Sparkline ─── */
+.sparkline-path {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
