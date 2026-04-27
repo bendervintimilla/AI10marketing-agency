@@ -883,3 +883,47 @@
                 padding-top: 1rem;
                 border-top: 1px solid var(--cd-line-soft);
             }
+
+/* Tolerant value renderer (handles objects/arrays returned from Claude tools) */
+.cd-root .cd-mini-list {
+    margin: 0;
+    padding-left: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.cd-root .cd-mini-obj {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: var(--cd-bg);
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--cd-line-soft);
+}
+.cd-root .cd-mini-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+@media (max-width: 600px) {
+    .cd-root .cd-mini-row { grid-template-columns: 1fr; }
+}
+.cd-root .cd-mini-key {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cd-ink-mute);
+    font-weight: 600;
+    padding-top: 2px;
+}
+.cd-root .cd-mini-val {
+    color: var(--cd-ink-soft);
+    word-break: break-word;
+}
+.cd-root .cd-empty-value {
+    color: var(--cd-ink-mute);
+    font-style: italic;
+}

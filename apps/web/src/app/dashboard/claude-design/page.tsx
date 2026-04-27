@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { apiGet, apiPost } from '@/lib/api'
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
@@ -591,15 +591,60 @@ function BriefField({
     large,
 }: {
     label: string
-    value: string
+    value: any
     large?: boolean
 }) {
     return (
         <div className={`cd-bf ${large ? 'is-large' : ''}`}>
             <div className="cd-bf-label">{label}</div>
-            <div className="cd-bf-value">{value}</div>
+            <div className="cd-bf-value">{renderValue(value)}</div>
         </div>
     )
+}
+
+/** Tolerant renderer: strings render as text, arrays as bullets,
+ *  objects as labeled rows. Prevents React error #31 when Claude
+ *  returns richer-than-expected JSON. */
+function renderValue(v: any): React.ReactNode {
+    if (v === null || v === undefined) return <span className="cd-empty-value">—</span>
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v)
+    if (Array.isArray(v)) {
+        return (
+            <ul className="cd-mini-list">
+                {v.map((item, i) => (
+                    <li key={i}>{renderValue(item)}</li>
+                ))}
+            </ul>
+        )
+    }
+    if (typeof v === 'object') {
+        return (
+            <div className="cd-mini-obj">
+                {Object.entries(v).map(([k, val]) => (
+                    <div key={k} className="cd-mini-row">
+                        <span className="cd-mini-key">{prettyKey(k)}</span>
+                        <span className="cd-mini-val">{renderValue(val)}</span>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+    return JSON.stringify(v)
+}
+
+function prettyKey(k: string): string {
+    return k
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/_/g, ' ')
+        .replace(/^./, (s) => s.toUpperCase())
+        .trim()
+}
+
+function valueToText(v: any): string {
+    if (v === null || v === undefined) return ''
+    if (typeof v === 'string') return v
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+    return JSON.stringify(v, null, 2)
 }
 
 function CopyBlock({
@@ -609,13 +654,14 @@ function CopyBlock({
     large,
 }: {
     label: string
-    text: string
+    text: any
     subtle?: boolean
     large?: boolean
 }) {
     const [copied, setCopied] = useState(false)
+    const safeText = valueToText(text)
     const onCopy = () => {
-        navigator.clipboard.writeText(text).then(() => {
+        navigator.clipboard.writeText(safeText).then(() => {
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
         })
@@ -639,15 +685,15 @@ function FindingList({
     tone,
 }: {
     title: string
-    items: string[]
+    items: any[]
     tone: 'pos' | 'neg' | 'neutral'
 }) {
     return (
         <div className="cd-finding">
             <div className={`cd-finding-title cd-${tone}`}>{title}</div>
             <ul className="cd-finding-list">
-                {items.map((item, i) => (
-                    <li key={i}>{item}</li>
+                {(items || []).map((item, i) => (
+                    <li key={i}>{renderValue(item)}</li>
                 ))}
             </ul>
         </div>

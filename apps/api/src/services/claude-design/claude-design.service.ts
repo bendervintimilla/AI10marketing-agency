@@ -144,7 +144,15 @@ export async function brief(req: CreativeBriefRequest): Promise<CreativeBrief> {
 
 GOAL: ${req.goal}
 
-Output strictly as JSON with keys: concept, mood, keyMessage, visualDirection, callToAction, targetPersona, risks (array of strings).`,
+Output strictly as JSON. EACH field below MUST be a single string (one to three sentences), NOT a nested object:
+- concept (string)
+- mood (string)
+- keyMessage (string)
+- visualDirection (string — describe shot, palette, talent, props in prose, NOT an object)
+- callToAction (string)
+- targetPersona (string)
+- risks (array of strings)
+Do not nest objects inside these fields. Plain strings only.`,
             },
         ],
     });
