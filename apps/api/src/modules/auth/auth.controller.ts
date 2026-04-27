@@ -1,29 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from './auth.service';
 import { RedisCache } from './redis.service';
-
-// In-memory store until Prisma DB is connected
-// Seed a default user so login works after restart (password: "password123")
-const SEED_ORG = { id: 'org_seed_1', name: 'My Agency' };
-const SEED_USER = {
-    id: 'usr_seed_1',
-    email: 'gabrielevanadia@gmail.com',
-    // bcrypt hash of "password123" (10 rounds)
-    password: '$2b$10$placeholder',
-    orgId: 'org_seed_1',
-    role: 'ADMIN',
-};
-
-const mockUsers: any[] = [];
-const mockOrgs: any[] = [];
-
-// Pre-hash the password and inject the seed user at module load
-(async () => {
-    SEED_USER.password = await AuthService.hashPassword('password123');
-    mockUsers.push(SEED_USER);
-    mockOrgs.push(SEED_ORG);
-    console.log('[auth] Seeded demo user: gabrielevanadia@gmail.com / password123');
-})();
+import { prisma } from '@agency/db';
 
 interface RegisterBody { email: string; password: string; orgName: string }
 interface LoginBody { email: string; password: string }
@@ -36,24 +14,23 @@ export async function handleRegister(req: FastifyRequest<{ Body: RegisterBody }>
         return reply.status(400).send({ error: 'Missing required fields' });
     }
 
-    const existingUser = mockUsers.find(u => u.email === email);
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
         return reply.status(400).send({ error: 'User already exists' });
     }
 
     const hashedPassword = await AuthService.hashPassword(password);
 
-    const newOrg = { id: `org_${Date.now()}`, name: orgName };
-    const newUser = { id: `usr_${Date.now()}`, email, password: hashedPassword, orgId: newOrg.id, role: 'ADMIN' };
+    const org = await prisma.organization.create({ data: { name: orgName } });
+    const user = await prisma.user.create({
+        data: { email, passwordHash: hashedPassword, organizationId: org.id, role: 'OWNER' },
+    });
 
-    mockOrgs.push(newOrg);
-    mockUsers.push(newUser);
-
-    const payload = { userId: newUser.id, email: newUser.email, orgId: newUser.orgId, role: newUser.role };
+    const payload = { userId: user.id, email: user.email, orgId: org.id, role: user.role };
     const token = AuthService.generateToken(payload);
     const refreshToken = AuthService.generateRefreshToken();
 
-    await RedisCache.storeRefreshToken(newUser.id, refreshToken);
+    await RedisCache.storeRefreshToken(user.id, refreshToken);
 
     return reply.status(201).send({ token, refreshToken, user: payload });
 }
@@ -64,17 +41,17 @@ export async function handleLogin(req: FastifyRequest<{ Body: LoginBody }>, repl
         return reply.status(400).send({ error: 'Missing required fields' });
     }
 
-    const user = mockUsers.find(u => u.email === email);
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
         return reply.status(401).send({ error: 'Invalid credentials' });
     }
 
-    const isValid = await AuthService.comparePassword(password, user.password);
+    const isValid = await AuthService.comparePassword(password, user.passwordHash);
     if (!isValid) {
         return reply.status(401).send({ error: 'Invalid credentials' });
     }
 
-    const payload = { userId: user.id, email: user.email, orgId: user.orgId, role: user.role };
+    const payload = { userId: user.id, email: user.email, orgId: user.organizationId, role: user.role };
     const token = AuthService.generateToken(payload);
     const refreshToken = AuthService.generateRefreshToken();
 
@@ -94,12 +71,12 @@ export async function handleRefresh(req: FastifyRequest<{ Body: RefreshBody }>, 
         return reply.status(403).send({ error: 'Invalid refresh token' });
     }
 
-    const user = mockUsers.find(u => u.id === userId);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
         return reply.status(404).send({ error: 'User not found' });
     }
 
-    const payload = { userId: user.id, email: user.email, orgId: user.orgId, role: user.role };
+    const payload = { userId: user.id, email: user.email, orgId: user.organizationId, role: user.role };
     const token = AuthService.generateToken(payload);
     const newRefreshToken = AuthService.generateRefreshToken();
 
