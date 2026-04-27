@@ -11,14 +11,14 @@ const BASE_AUTH_URL = 'https://www.facebook.com/v19.0/dialog/oauth';
 const TOKEN_URL = 'https://graph.facebook.com/v19.0/oauth/access_token';
 const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
 
-// Only request scopes our app has approved. Publish-related scopes
-// (pages_manage_posts, instagram_content_publish) require Meta App Review;
-// keep them out of the OAuth dialog until we ship publishing.
+// Only request scopes our app has approved in Development mode. Anything
+// requiring App Review (pages_manage_posts, instagram_content_publish,
+// instagram_manage_insights) gets added back when we submit the app for
+// review and ship the corresponding feature.
 const SCOPES = [
     'pages_show_list',
     'pages_read_engagement',
     'instagram_basic',
-    'instagram_manage_insights',
     'business_management',
 ].join(',');
 
