@@ -95,11 +95,31 @@ export async function handleLogout(req: FastifyRequest<{ Body: LogoutBody }>, re
 }
 
 export async function handleMe(req: FastifyRequest, reply: FastifyReply) {
-    const user = (req as any).user;
-    if (!user) {
+    const tokenUser = (req as any).user;
+    if (!tokenUser) {
         return reply.status(401).send({ error: 'Not authenticated' });
     }
-    return reply.status(200).send({ user });
+
+    // Hydrate from DB so org name + role are always fresh
+    const dbUser = await prisma.user.findUnique({
+        where: { id: tokenUser.userId },
+        include: { organization: { select: { id: true, name: true, industry: true, plan: true } } },
+    });
+
+    if (!dbUser) {
+        return reply.status(404).send({ error: 'User no longer exists' });
+    }
+
+    return reply.status(200).send({
+        user: {
+            userId: dbUser.id,
+            email: dbUser.email,
+            name: dbUser.name,
+            role: dbUser.role,
+            orgId: dbUser.organizationId,
+        },
+        organization: dbUser.organization,
+    });
 }
 
 /**

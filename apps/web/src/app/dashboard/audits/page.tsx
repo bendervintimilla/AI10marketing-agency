@@ -32,11 +32,11 @@ export default function AuditsPage() {
     const [brands, setBrands] = useState<Brand[]>([])
     const [runs, setRuns] = useState<Record<string, AuditRun[]>>({})
     const [loading, setLoading] = useState(true)
-    const [running, setRunning] = useState<string | null>(null) // brandId+platform key
+    const [running, setRunning] = useState<string | null>(null)
 
     useEffect(() => {
         loadData()
-        const interval = setInterval(loadData, 5000) // poll for live status
+        const interval = setInterval(loadData, 5000)
         return () => clearInterval(interval)
     }, [])
 
@@ -44,7 +44,6 @@ export default function AuditsPage() {
         try {
             const brandList = await apiGet<Brand[]>('/brands')
             setBrands(brandList)
-
             const runsMap: Record<string, AuditRun[]> = {}
             await Promise.all(
                 brandList.map(async (b) => {
@@ -77,32 +76,50 @@ export default function AuditsPage() {
     }
 
     if (loading) {
-        return <div className="p-8 text-gray-500">Loading audits…</div>
+        return (
+            <div className="p-8 text-gray-400">
+                <div className="animate-pulse">Loading brand audits…</div>
+            </div>
+        )
     }
 
     return (
         <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-3xl font-bold">Brand Audits</h1>
-                <p className="text-gray-500 mt-1">
+                <h1 className="text-3xl font-bold text-white">Brand Audits</h1>
+                <p className="text-gray-400 mt-1">
                     Run structural audits on your Instagram accounts and landing pages.
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                    {brands.length} {brands.length === 1 ? 'brand' : 'brands'} in your organization
                 </p>
             </div>
 
             {brands.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-8 text-center text-gray-500">
-                    No brands yet. <Link className="text-blue-600" href="/dashboard/settings">
+                <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] p-12 text-center">
+                    <div className="text-5xl mb-3">🏢</div>
+                    <div className="text-white font-medium mb-1">No brands yet</div>
+                    <div className="text-gray-400 text-sm mb-4">
+                        Add your first brand to start running audits.
+                    </div>
+                    <Link
+                        href="/dashboard/settings"
+                        className="inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
+                    >
                         Add a brand →
                     </Link>
                 </div>
             ) : (
                 <div className="grid gap-4">
                     {brands.map((brand) => (
-                        <div key={brand.id} className="rounded-lg border bg-white p-6 shadow-sm">
+                        <div
+                            key={brand.id}
+                            className="rounded-lg border border-white/10 bg-white/[0.03] p-6 shadow-lg backdrop-blur"
+                        >
                             <div className="flex items-start justify-between mb-4">
                                 <div>
-                                    <h2 className="text-xl font-semibold">{brand.name}</h2>
-                                    <div className="text-sm text-gray-500 mt-1 flex gap-4">
+                                    <h2 className="text-xl font-semibold text-white">{brand.name}</h2>
+                                    <div className="text-sm text-gray-400 mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
                                         {brand.instagramHandle && (
                                             <span>📸 {brand.instagramHandle}</span>
                                         )}
@@ -110,8 +127,12 @@ export default function AuditsPage() {
                                             <span>{brand.followerCount.toLocaleString()} followers</span>
                                         )}
                                         {brand.websiteUrl && (
-                                            <a href={brand.websiteUrl} target="_blank"
-                                                className="text-blue-600 hover:underline">
+                                            <a
+                                                href={brand.websiteUrl}
+                                                target="_blank"
+                                                rel="noopener"
+                                                className="text-indigo-400 hover:text-indigo-300 hover:underline"
+                                            >
                                                 🌐 site
                                             </a>
                                         )}
@@ -119,37 +140,46 @@ export default function AuditsPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {platforms.map((p) => {
                                     const run = getLatestRun(brand.id, p.key)
                                     const key = `${brand.id}-${p.key}`
-                                    const isRunning = running === key ||
-                                        run?.status === 'QUEUED' || run?.status === 'RUNNING'
+                                    const isRunning =
+                                        running === key ||
+                                        run?.status === 'QUEUED' ||
+                                        run?.status === 'RUNNING'
                                     return (
-                                        <div key={p.key} className="rounded-md border bg-gray-50 p-4">
+                                        <div
+                                            key={p.key}
+                                            className="rounded-md border border-white/10 bg-black/20 p-4"
+                                        >
                                             <div className="flex items-center justify-between mb-2">
-                                                <div className="font-medium">
-                                                    {p.icon} {p.label}
+                                                <div className="font-medium text-white">
+                                                    <span className="mr-1.5">{p.icon}</span>
+                                                    {p.label}
                                                 </div>
                                                 {run?.score !== null && run?.score !== undefined && (
                                                     <ScoreBadge score={run.score} grade={run.grade} />
                                                 )}
                                             </div>
                                             <div className="flex items-center justify-between gap-2">
-                                                <div className="text-xs text-gray-500">
+                                                <div className="text-xs text-gray-400">
                                                     {run ? <RunStatus run={run} /> : 'Never run'}
                                                 </div>
                                                 <div className="flex gap-2">
                                                     {run?.status === 'COMPLETED' && (
-                                                        <Link href={`/dashboard/audits/${run.id}`}
-                                                            className="text-xs text-blue-600 hover:underline">
+                                                        <Link
+                                                            href={`/dashboard/audits/${run.id}`}
+                                                            className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline"
+                                                        >
                                                             View →
                                                         </Link>
                                                     )}
                                                     <button
                                                         disabled={isRunning}
                                                         onClick={() => runAudit(brand.id, p.key)}
-                                                        className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50">
+                                                        className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
                                                         {isRunning ? 'Running…' : 'Run audit'}
                                                     </button>
                                                 </div>
@@ -168,21 +198,27 @@ export default function AuditsPage() {
 
 function ScoreBadge({ score, grade }: { score: number | null; grade: string | null }) {
     if (score === null) return null
-    const color = score >= 75 ? 'bg-green-100 text-green-800'
-        : score >= 60 ? 'bg-yellow-100 text-yellow-800'
-        : score >= 40 ? 'bg-orange-100 text-orange-800'
-        : 'bg-red-100 text-red-800'
+    const color =
+        score >= 75
+            ? 'bg-green-500/20 text-green-300 border-green-500/30'
+            : score >= 60
+            ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+            : score >= 40
+            ? 'bg-orange-500/20 text-orange-300 border-orange-500/30'
+            : 'bg-red-500/20 text-red-300 border-red-500/30'
     return (
-        <span className={`rounded px-2 py-0.5 text-xs font-bold ${color}`}>
+        <span className={`rounded border px-2 py-0.5 text-xs font-bold ${color}`}>
             {Math.round(score)} · {grade}
         </span>
     )
 }
 
 function RunStatus({ run }: { run: AuditRun }) {
-    if (run.status === 'QUEUED') return <span className="text-blue-500">Queued…</span>
-    if (run.status === 'RUNNING') return <span className="text-blue-500 animate-pulse">Running…</span>
-    if (run.status === 'FAILED') return <span className="text-red-600">Failed</span>
+    if (run.status === 'QUEUED')
+        return <span className="text-blue-400">Queued…</span>
+    if (run.status === 'RUNNING')
+        return <span className="text-blue-400 animate-pulse">Running…</span>
+    if (run.status === 'FAILED') return <span className="text-red-400">Failed</span>
     if (!run.completedAt) return <span>—</span>
     const ago = formatTimeAgo(new Date(run.completedAt))
     return <span>Last run {ago}</span>

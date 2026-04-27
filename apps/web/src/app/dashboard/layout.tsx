@@ -91,7 +91,7 @@ const NAV_ITEMS: NavItem[] = [
     { label: 'Campaigns', href: '/dashboard/campaigns', icon: <IconCampaigns /> },
     { label: 'Media Library', href: '/dashboard/media', icon: <IconMedia /> },
     { label: 'Analytics', href: '/dashboard/analytics', icon: <IconAnalytics /> },
-    { label: 'AI Insights', href: '/dashboard/ai-insights', icon: <IconAI />, badge: 7 },
+    { label: 'AI Insights', href: '/dashboard/ai-insights', icon: <IconAI /> },
     { label: 'Settings', href: '/dashboard/settings', icon: <IconSettings /> },
 ]
 
@@ -356,6 +356,7 @@ function Topbar({ onMenuClick, userInitials, userName, userEmail, onLogout }: {
 /* ─── Dashboard Layout ─── */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [organization, setOrganization] = useState<{ name: string } | null>(null)
     const { user, isLoading, logout } = useAuth()
     const router = useRouter()
 
@@ -366,6 +367,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
     }, [isLoading, user, router])
 
+    // Fetch organization info from /auth/me
+    useEffect(() => {
+        if (!user) return
+        import('@/lib/api').then(({ apiGet }) => {
+            apiGet<{ organization: { name: string } }>('/auth/me')
+                .then((res) => setOrganization(res.organization))
+                .catch(() => setOrganization(null))
+        })
+    }, [user])
+
     const handleLogout = () => {
         logout()
         router.push('/login')
@@ -375,7 +386,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const userEmail = user?.email || ''
     const userName = userEmail.split('@')[0] || 'User'
     const userInitials = userName.slice(0, 2).toUpperCase()
-    const orgName = 'My Agency' // TODO: fetch org name from API
+    const orgName = organization?.name || 'My Agency'
     const orgInitials = orgName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
     const userRole = user?.role || 'User'
 

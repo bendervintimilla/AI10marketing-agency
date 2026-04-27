@@ -162,13 +162,31 @@ export default function DashboardPage() {
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
     const [stats, setStats] = useState<{ activeCampaigns: number; adsPublished: number; totalReach: number; aiRecs: number } | null>(null)
+    const [brandCount, setBrandCount] = useState<number>(0)
+    const [recentAudits, setRecentAudits] = useState<any[]>([])
 
     useEffect(() => {
         apiGet('/analytics/dashboard-stats').then(data => {
             setStats(data)
-        }).catch(() => {
-            // API not available — will use default values
-        })
+        }).catch(() => { /* default zeros */ })
+
+        apiGet<any[]>('/brands').then(brands => {
+            setBrandCount(brands.length)
+            // For each brand, get its latest audit run
+            return Promise.all(
+                brands.slice(0, 10).map((b: any) =>
+                    apiGet<any[]>(`/brands/${b.id}/audits?limit=2`).then(runs =>
+                        runs.map(r => ({ ...r, brandName: b.name }))
+                    ).catch(() => [])
+                )
+            )
+        }).then(allRuns => {
+            if (!allRuns) return
+            const flat = allRuns.flat().sort((a, b) =>
+                new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+            ).slice(0, 5)
+            setRecentAudits(flat)
+        }).catch(() => { /* nothing */ })
     }, [])
 
     const [checklistItems, setChecklistItems] = useState([
@@ -190,10 +208,10 @@ export default function DashboardPage() {
 
     const STATS: StatCardProps[] = [
         {
-            label: 'Active Campaigns',
-            value: stats ? String(stats.activeCampaigns) : '0',
+            label: 'Brands',
+            value: String(brandCount),
             change: 0,
-            changeLabel: 'campaigns',
+            changeLabel: 'in your portfolio',
             icon: <IconCampaign />,
             iconColor: 'bg-violet-500/10 text-violet-400',
             sparkline: [4, 7, 5, 9, 8, 12],
@@ -235,55 +253,40 @@ export default function DashboardPage() {
         },
     ]
 
-    const ACTIVITY = [
+    function timeAgo(d: string | Date): string {
+        const sec = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
+        if (sec < 60) return 'just now'
+        if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
+        if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`
+        return `${Math.floor(sec / 86400)}d ago`
+    }
+
+    const ACTIVITY = recentAudits.length > 0 ? recentAudits.map((r) => {
+        const statusBadge = {
+            COMPLETED: { label: r.score !== null ? `Score ${Math.round(r.score)}` : 'Completed', color: 'bg-emerald-500/15 text-emerald-400' },
+            RUNNING: { label: 'Running', color: 'bg-blue-500/15 text-blue-400' },
+            QUEUED: { label: 'Queued', color: 'bg-blue-500/15 text-blue-400' },
+            FAILED: { label: 'Failed', color: 'bg-red-500/15 text-red-400' },
+        }[r.status as 'COMPLETED' | 'RUNNING' | 'QUEUED' | 'FAILED'] || { label: r.status, color: 'bg-gray-500/15 text-gray-400' }
+        return {
+            id: r.id,
+            type: 'audit',
+            icon: r.platform === 'INSTAGRAM' ? <IconInstagram /> : <IconBrain />,
+            iconBg: r.platform === 'INSTAGRAM' ? 'bg-gradient-to-br from-purple-500 to-pink-500' : 'bg-violet-500/15 text-violet-400',
+            text: `${r.platform} audit on "${r.brandName}"`,
+            meta: timeAgo(r.startedAt),
+            badge: statusBadge.label,
+            badgeColor: statusBadge.color,
+        }
+    }) : [
         {
-            id: 1,
-            type: 'published',
-            icon: <IconInstagram />,
-            iconBg: 'bg-gradient-to-br from-purple-500 to-pink-500',
-            text: 'Ad "Summer Vibes #3" published to Instagram',
-            meta: '2 minutes ago',
-            badge: 'Published',
-            badgeColor: 'bg-emerald-500/15 text-emerald-400',
-        },
-        {
-            id: 2,
-            type: 'ai',
-            icon: <IconBrain />,
-            iconBg: 'bg-amber-500/15 text-amber-400',
-            text: 'AI suggests pausing "Ad #42" – ROAS dropped below threshold',
-            meta: '15 minutes ago',
-            badge: 'AI Alert',
-            badgeColor: 'bg-amber-500/15 text-amber-400',
-        },
-        {
-            id: 3,
-            type: 'published',
-            icon: <IconTikTok />,
-            iconBg: 'bg-black text-white',
-            text: 'Ad "Product Showcase v2" published to TikTok',
-            meta: '1 hour ago',
-            badge: 'Published',
-            badgeColor: 'bg-emerald-500/15 text-emerald-400',
-        },
-        {
-            id: 4,
-            type: 'campaign',
-            icon: <IconCampaign />,
-            iconBg: 'bg-blue-500/15 text-blue-400',
-            text: 'Campaign "Brand Awareness Q1" reached 500K impressions',
-            meta: '3 hours ago',
-            badge: 'Milestone',
-            badgeColor: 'bg-blue-500/15 text-blue-400',
-        },
-        {
-            id: 5,
-            type: 'ai',
+            id: 'empty',
+            type: 'empty',
             icon: <IconBrain />,
             iconBg: 'bg-violet-500/15 text-violet-400',
-            text: 'AI generated 5 new ad variants for "Summer Sale" campaign',
-            meta: '5 hours ago',
-            badge: 'Generated',
+            text: 'No audits run yet — head to Brand Audits to run your first one',
+            meta: '',
+            badge: 'Get Started',
             badgeColor: 'bg-violet-500/15 text-violet-400',
         },
     ]
