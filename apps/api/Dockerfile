@@ -55,6 +55,10 @@ RUN mkdir -p node_modules/@agency && \
     ln -s /app/packages/db node_modules/@agency/db && \
     ln -s /app/packages/shared node_modules/@agency/shared
 
+# Copy startup script (runs prisma db push before starting server)
+COPY apps/api/start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Create non-root user
 RUN addgroup -g 1001 -S appgroup && adduser -S appuser -u 1001 -G appgroup
 USER appuser
@@ -62,4 +66,4 @@ USER appuser
 EXPOSE 3001
 
 ENTRYPOINT ["tini", "--"]
-CMD ["node", "apps/api/dist/index.js"]
+CMD ["/bin/sh", "/app/start.sh"]
