@@ -11,11 +11,15 @@ const BASE_AUTH_URL = 'https://www.facebook.com/v19.0/dialog/oauth';
 const TOKEN_URL = 'https://graph.facebook.com/v19.0/oauth/access_token';
 const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
 
+// Only request scopes our app has approved. Publish-related scopes
+// (pages_manage_posts, instagram_content_publish) require Meta App Review;
+// keep them out of the OAuth dialog until we ship publishing.
 const SCOPES = [
-    'pages_manage_posts',
-    'instagram_basic',
-    'instagram_content_publish',
+    'pages_show_list',
     'pages_read_engagement',
+    'instagram_basic',
+    'instagram_manage_insights',
+    'business_management',
 ].join(',');
 
 export function getMetaAuthUrl(state: string): string {
