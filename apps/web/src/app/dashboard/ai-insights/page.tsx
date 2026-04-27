@@ -132,6 +132,12 @@ export default function AIInsightsPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
+    // Recommendation state — buttons mark items locally so the user gets immediate feedback.
+    // We don't have a /ai/recommendations/apply endpoint yet, so apply is local-only.
+    const [appliedIdx, setAppliedIdx] = useState<Set<number>>(new Set())
+    const [dismissedIdx, setDismissedIdx] = useState<Set<number>>(new Set())
+    const [toast, setToast] = useState<string | null>(null)
+
     // Chat state
     const [chatOpen, setChatOpen] = useState(false)
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -140,6 +146,19 @@ export default function AIInsightsPage() {
     const [chatInput, setChatInput] = useState('')
     const [chatLoading, setChatLoading] = useState(false)
     const chatEndRef = useRef<HTMLDivElement>(null)
+
+    function showToast(msg: string) {
+        setToast(msg)
+        window.setTimeout(() => setToast(null), 2400)
+    }
+    function applyRecommendation(i: number) {
+        setAppliedIdx(prev => new Set(prev).add(i))
+        showToast('Recommendation marked as applied')
+    }
+    function dismissRecommendation(i: number) {
+        setDismissedIdx(prev => new Set(prev).add(i))
+        showToast('Recommendation dismissed')
+    }
 
     const fetchInsights = async () => {
         setLoading(true)
@@ -301,23 +320,43 @@ export default function AIInsightsPage() {
                             <div>
                                 <h3 className="text-sm font-bold text-[var(--color-text)] mb-3 uppercase tracking-wider">AI Recommendations</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {insights.recommendations.map((rec, i) => {
+                                    {insights.recommendations
+                                        .map((rec, i) => ({ rec, i }))
+                                        .filter(({ i }) => !dismissedIdx.has(i))
+                                        .map(({ rec, i }) => {
                                         const cfg = TYPE_CFG[rec.type] || TYPE_CFG.Budget
+                                        const isApplied = appliedIdx.has(i)
                                         return (
-                                            <div key={i} className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5 hover:border-violet-500/30 transition-all group">
+                                            <div key={i} className={`rounded-xl bg-[var(--color-surface)] border p-5 transition-all ${
+                                                isApplied
+                                                    ? 'border-emerald-500/40'
+                                                    : 'border-[var(--color-border)] hover:border-violet-500/30'
+                                            }`}>
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${cfg.bg} ${cfg.text}`}>
                                                         {rec.type}
                                                     </span>
                                                     <span className="text-[10px] text-[var(--color-text-subtle)]">{rec.confidence}% confidence</span>
+                                                    {isApplied && (
+                                                        <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                                            ✓ Applied
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <h4 className="font-semibold text-sm text-[var(--color-text)] mb-1.5">{rec.title}</h4>
                                                 <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mb-4">{rec.description}</p>
-                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all">
-                                                        Apply
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => applyRecommendation(i)}
+                                                        disabled={isApplied}
+                                                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all disabled:bg-emerald-600 disabled:cursor-default"
+                                                    >
+                                                        {isApplied ? 'Applied' : 'Apply'}
                                                     </button>
-                                                    <button className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] transition-all">
+                                                    <button
+                                                        onClick={() => dismissRecommendation(i)}
+                                                        className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text)] transition-all"
+                                                    >
                                                         Dismiss
                                                     </button>
                                                 </div>
@@ -404,6 +443,12 @@ export default function AIInsightsPage() {
                     </div>
                 )}
             </div>
+
+            {toast && (
+                <div className="fixed bottom-6 right-6 z-[var(--z-toast)] rounded-xl border border-violet-500/30 bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] shadow-2xl backdrop-blur animate-slide-up">
+                    {toast}
+                </div>
+            )}
         </div>
     )
 }

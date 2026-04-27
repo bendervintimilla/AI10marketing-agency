@@ -61,7 +61,7 @@ export default function AuditDetailPage() {
         }
     }, [id])
 
-    if (!run) return <div className="p-8 text-gray-500">Loading…</div>
+    if (!run) return <div className="p-8 text-[var(--color-text-muted)]">Loading…</div>
 
     const failed = checks.filter((c) => c.status === 'FAIL')
     const warned = checks.filter((c) => c.status === 'WARNING')
@@ -69,17 +69,19 @@ export default function AuditDetailPage() {
     const na = checks.filter((c) => c.status === 'NA')
 
     return (
-        <div className="p-8 space-y-6">
+        <div className="p-2 md:p-4 space-y-6 text-[var(--color-text)]">
             <Link href="/dashboard/audits"
-                className="text-sm text-blue-600 hover:underline">
+                className="text-sm text-violet-400 hover:text-violet-300 hover:underline">
                 ← All audits
             </Link>
 
-            <div className="flex items-start justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold">{run.brand.name}</h1>
-                    <p className="text-gray-500">
-                        {run.platform} audit · {run.status === 'COMPLETED' ? new Date(run.completedAt!).toLocaleString() : run.status}
+            <div className="flex items-start justify-between gap-6">
+                <div className="min-w-0">
+                    <h1 className="text-3xl font-bold text-[var(--color-text)] truncate">{run.brand.name}</h1>
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                        {run.platform} audit · {run.status === 'COMPLETED' && run.completedAt
+                            ? new Date(run.completedAt).toLocaleString()
+                            : run.status}
                     </p>
                 </div>
                 {run.score !== null && (
@@ -88,30 +90,32 @@ export default function AuditDetailPage() {
             </div>
 
             {run.status === 'FAILED' && (
-                <div className="rounded-md bg-red-50 border border-red-200 p-4 text-red-800">
-                    <strong>Failed:</strong> {run.errorMessage}
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                    <strong className="text-red-200">Failed:</strong> {run.errorMessage}
                 </div>
             )}
 
             {(run.status === 'QUEUED' || run.status === 'RUNNING') && (
-                <div className="rounded-md bg-blue-50 border border-blue-200 p-4 text-blue-800">
+                <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-4 text-sm text-violet-200">
                     <span className="animate-pulse">⏳</span> Audit is {run.status.toLowerCase()}…
                 </div>
             )}
 
             {run.status === 'COMPLETED' && (
                 <>
-                    <div className="border-b">
+                    <div className="border-b border-[var(--color-border)]">
                         <nav className="flex gap-6">
                             {(['overview', 'checks', 'report'] as const).map((t) => (
                                 <button key={t}
                                     onClick={() => setTab(t)}
-                                    className={`pb-3 px-1 text-sm font-medium border-b-2 ${
-                                        tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
+                                    className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                                        tab === t
+                                            ? 'border-violet-500 text-violet-400'
+                                            : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                                     }`}>
                                     {t.charAt(0).toUpperCase() + t.slice(1)}
                                     {t === 'checks' && (
-                                        <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded">
+                                        <span className="ml-2 text-xs bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] px-2 py-0.5 rounded">
                                             {checks.length}
                                         </span>
                                     )}
@@ -122,7 +126,7 @@ export default function AuditDetailPage() {
 
                     {tab === 'overview' && (
                         <div className="space-y-4">
-                            <div className="grid grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 <Stat label="Passed" value={passed.length} color="green" />
                                 <Stat label="Warnings" value={warned.length} color="yellow" />
                                 <Stat label="Failed" value={failed.length} color="red" />
@@ -130,17 +134,17 @@ export default function AuditDetailPage() {
                             </div>
 
                             {run.summary?.by_category && (
-                                <div className="rounded-lg border bg-white p-6">
-                                    <h3 className="font-semibold mb-4">Category Scores</h3>
+                                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                                    <h3 className="font-semibold mb-4 text-[var(--color-text)]">Category Scores</h3>
                                     <div className="space-y-3">
                                         {Object.entries(run.summary.by_category).map(([cat, b]: any) => (
                                             <div key={cat}>
                                                 <div className="flex justify-between text-sm mb-1">
-                                                    <span>{cat}</span>
-                                                    <span className="font-mono">{b.score ?? 'N/A'}</span>
+                                                    <span className="text-[var(--color-text-muted)]">{cat}</span>
+                                                    <span className="font-mono text-[var(--color-text)]">{b.score ?? 'N/A'}</span>
                                                 </div>
-                                                <div className="h-2 bg-gray-100 rounded overflow-hidden">
-                                                    <div className="h-full bg-blue-500"
+                                                <div className="h-2 bg-[var(--color-surface-raised)] rounded overflow-hidden">
+                                                    <div className="h-full bg-gradient-to-r from-violet-500 to-violet-400"
                                                         style={{ width: `${b.score ?? 0}%` }} />
                                                 </div>
                                             </div>
@@ -150,14 +154,15 @@ export default function AuditDetailPage() {
                             )}
 
                             {failed.length > 0 && (
-                                <div className="rounded-lg border bg-red-50 p-6">
-                                    <h3 className="font-semibold mb-3">Top Issues to Fix</h3>
-                                    <ul className="space-y-2">
+                                <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-6">
+                                    <h3 className="font-semibold mb-3 text-red-300">Top Issues to Fix</h3>
+                                    <ul className="space-y-3">
                                         {failed.slice(0, 5).map((c) => (
                                             <li key={c.id} className="text-sm">
-                                                <strong>{c.checkId}</strong>: {c.message}
+                                                <strong className="text-[var(--color-text)]">{c.checkId}</strong>
+                                                <span className="text-[var(--color-text-muted)]">: {c.message}</span>
                                                 {c.recommendation && (
-                                                    <div className="text-gray-600 mt-1">→ {c.recommendation}</div>
+                                                    <div className="text-[var(--color-text-muted)] mt-1">→ {c.recommendation}</div>
                                                 )}
                                             </li>
                                         ))}
@@ -176,7 +181,7 @@ export default function AuditDetailPage() {
                     )}
 
                     {tab === 'report' && report && (
-                        <pre className="rounded-lg border bg-white p-6 text-sm whitespace-pre-wrap font-sans">
+                        <pre className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm whitespace-pre-wrap font-sans text-[var(--color-text)] overflow-x-auto">
                             {report}
                         </pre>
                     )}
@@ -187,51 +192,57 @@ export default function AuditDetailPage() {
 }
 
 function ScoreGauge({ score, grade }: { score: number; grade: string }) {
-    const color = score >= 75 ? '#16a34a' : score >= 60 ? '#ca8a04' : score >= 40 ? '#ea580c' : '#dc2626'
+    const color =
+        score >= 75 ? '#4ade80' :
+        score >= 60 ? '#facc15' :
+        score >= 40 ? '#fb923c' : '#f87171'
     return (
-        <div className="text-center">
+        <div className="text-center shrink-0">
             <div className="text-5xl font-bold" style={{ color }}>{Math.round(score)}</div>
-            <div className="text-sm text-gray-500">Grade {grade}</div>
+            <div className="text-xs text-[var(--color-text-muted)] mt-1">Grade {grade}</div>
         </div>
     )
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
-    const colors: Record<string, string> = {
-        green: 'text-green-700 bg-green-50',
-        yellow: 'text-yellow-700 bg-yellow-50',
-        red: 'text-red-700 bg-red-50',
-        gray: 'text-gray-700 bg-gray-50',
+    const colors: Record<string, { bg: string; text: string; border: string }> = {
+        green:  { bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/30' },
+        yellow: { bg: 'bg-amber-500/10',   text: 'text-amber-300',   border: 'border-amber-500/30' },
+        red:    { bg: 'bg-red-500/10',     text: 'text-red-300',     border: 'border-red-500/30' },
+        gray:   { bg: 'bg-[var(--color-surface-raised)]', text: 'text-[var(--color-text-muted)]', border: 'border-[var(--color-border)]' },
     }
+    const c = colors[color]
     return (
-        <div className={`rounded-lg p-4 ${colors[color]}`}>
-            <div className="text-3xl font-bold">{value}</div>
-            <div className="text-sm">{label}</div>
+        <div className={`rounded-xl border ${c.bg} ${c.border} p-4`}>
+            <div className={`text-3xl font-bold ${c.text}`}>{value}</div>
+            <div className={`text-sm ${c.text} opacity-80`}>{label}</div>
         </div>
     )
 }
 
 function CheckRow({ check }: { check: AuditCheck }) {
     const icon = { PASS: '✅', WARNING: '⚠️', FAIL: '❌', NA: '⊝' }[check.status]
-    const bg = {
-        PASS: 'bg-green-50 border-green-200',
-        WARNING: 'bg-yellow-50 border-yellow-200',
-        FAIL: 'bg-red-50 border-red-200',
-        NA: 'bg-gray-50 border-gray-200',
+    const styles = {
+        PASS:    'bg-emerald-500/5 border-emerald-500/25',
+        WARNING: 'bg-amber-500/5 border-amber-500/25',
+        FAIL:    'bg-red-500/5 border-red-500/25',
+        NA:      'bg-[var(--color-surface)] border-[var(--color-border)]',
     }[check.status]
     return (
-        <div className={`rounded-md border p-4 ${bg}`}>
+        <div className={`rounded-lg border p-4 ${styles}`}>
             <div className="flex items-start gap-3">
-                <span className="text-xl">{icon}</span>
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-xs text-gray-500">{check.checkId}</span>
-                        <span className="text-xs px-2 py-0.5 rounded bg-white">{check.category}</span>
-                        <span className="text-xs text-gray-500">{check.severity}</span>
+                <span className="text-xl shrink-0">{icon}</span>
+                <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span className="font-mono text-xs text-[var(--color-text-subtle)]">{check.checkId}</span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
+                            {check.category}
+                        </span>
+                        <span className="text-xs text-[var(--color-text-subtle)] uppercase">{check.severity}</span>
                     </div>
-                    <div className="text-sm">{check.message}</div>
+                    <div className="text-sm text-[var(--color-text)]">{check.message}</div>
                     {check.recommendation && (
-                        <div className="text-xs text-gray-600 mt-2">→ {check.recommendation}</div>
+                        <div className="text-xs text-[var(--color-text-muted)] mt-2">→ {check.recommendation}</div>
                     )}
                 </div>
             </div>

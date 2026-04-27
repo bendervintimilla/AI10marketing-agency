@@ -268,37 +268,71 @@ function AnalyticsTab() {
 }
 
 // ── AI Insights Tab ───────────────────────────────────────────────────
-function InsightsTab() {
-    const recs = [
+function InsightsTab({ onToast }: { onToast: (msg: string) => void }) {
+    const initial = [
         { id: 1, title: 'Increase TikTok budget by 20%', desc: 'TikTok ads have 2.3x better CTR vs Instagram in your current campaign. Reallocating budget could boost conversions.', confidence: 92, type: 'Budget', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' },
         { id: 2, title: 'Pause low-performing Story format', desc: 'Instagram Stories are underperforming with 0.4% CTR vs 1.8% benchmark. Consider pausing and reallocating spend.', confidence: 85, type: 'Optimize', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' },
         { id: 3, title: 'Post at peak engagement times', desc: 'Your audience is most active 7–9 PM EST. Schedule remaining ads in this window for maximum reach.', confidence: 78, type: 'Schedule', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20' },
     ]
+    const [applied, setApplied] = useState<Set<number>>(new Set())
+    const [dismissed, setDismissed] = useState<Set<number>>(new Set())
+    const recs = initial.filter(r => !dismissed.has(r.id))
+
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
                 <div className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0"><IconAI /></div>
                 <div>
-                    <p className="text-sm font-semibold text-[var(--color-text)]">3 AI Recommendations for this Campaign</p>
+                    <p className="text-sm font-semibold text-[var(--color-text)]">{recs.length} AI Recommendations for this Campaign</p>
                     <p className="text-xs text-[var(--color-text-muted)]">Powered by Agent 8 – updated 5 minutes ago</p>
                 </div>
             </div>
-            {recs.map(r => (
-                <div key={r.id} className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5">
-                    <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${r.color}`}>{r.type}</span>
-                            <span className="text-[10px] text-[var(--color-text-subtle)]">{r.confidence}% confidence</span>
+            {recs.length === 0 && (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-text-muted)]">
+                    All recommendations have been processed.
+                </div>
+            )}
+            {recs.map(r => {
+                const isApplied = applied.has(r.id)
+                return (
+                    <div key={r.id} className={`rounded-xl bg-[var(--color-surface)] border p-5 ${isApplied ? 'border-emerald-500/40' : 'border-[var(--color-border)]'}`}>
+                        <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${r.color}`}>{r.type}</span>
+                                <span className="text-[10px] text-[var(--color-text-subtle)]">{r.confidence}% confidence</span>
+                            </div>
+                            {isApplied && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                    ✓ Applied
+                                </span>
+                            )}
+                        </div>
+                        <h3 className="font-semibold text-[var(--color-text)] text-sm mb-1">{r.title}</h3>
+                        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mb-4">{r.desc}</p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setApplied(prev => new Set(prev).add(r.id))
+                                    onToast('Recommendation applied')
+                                }}
+                                disabled={isApplied}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all disabled:bg-emerald-600 disabled:cursor-default"
+                            >
+                                {isApplied ? 'Applied' : 'Apply'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setDismissed(prev => new Set(prev).add(r.id))
+                                    onToast('Recommendation dismissed')
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text)] transition-all"
+                            >
+                                Dismiss
+                            </button>
                         </div>
                     </div>
-                    <h3 className="font-semibold text-[var(--color-text)] text-sm mb-1">{r.title}</h3>
-                    <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mb-4">{r.desc}</p>
-                    <div className="flex gap-2">
-                        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all">Apply</button>
-                        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] transition-all">Dismiss</button>
-                    </div>
-                </div>
-            ))}
+                )
+            })}
         </div>
     )
 }
@@ -314,6 +348,12 @@ export default function CampaignDetailPage() {
     const [tab, setTab] = useState<Tab>('ads')
     const [selectedAd, setSelectedAd] = useState<Ad | null>(null)
     const [selected, setSelected] = useState<Set<string>>(new Set())
+    const [toast, setToast] = useState<string | null>(null)
+
+    const showToast = (msg: string) => {
+        setToast(msg)
+        window.setTimeout(() => setToast(null), 2400)
+    }
 
     useEffect(() => {
         if (campaignId) {
@@ -348,7 +388,14 @@ export default function CampaignDetailPage() {
         }
         if (action === 'regenerate') setSelectedAd(null)
     }
-    const handleBulkAction = (_action: string) => { setSelected(new Set()) }
+    const handleBulkAction = async (action: string) => {
+        const ids = Array.from(selected)
+        if (ids.length === 0) return
+        // Optimistic UI: apply same per-ad update for the action
+        await Promise.allSettled(ids.map(id => handleAdAction(id, action)))
+        showToast(`${action} applied to ${ids.length} ad${ids.length === 1 ? '' : 's'}`)
+        setSelected(new Set())
+    }
 
     const handleCampaignAction = async (action: string) => {
         const MAP: Partial<Record<string, CampaignStatus>> = { activate: 'Active', pause: 'Paused', complete: 'Completed' }
@@ -445,11 +492,17 @@ export default function CampaignDetailPage() {
             {/* Tab content */}
             {tab === 'ads' && <AdsTab ads={campaign.ads} onAdClick={setSelectedAd} selected={selected} onToggleSelect={toggleSelect} onBulkAction={handleBulkAction} />}
             {tab === 'analytics' && <AnalyticsTab />}
-            {tab === 'insights' && <InsightsTab />}
+            {tab === 'insights' && <InsightsTab onToast={showToast} />}
 
             {/* Slide-over */}
             {selectedAd && (
                 <AdSlideOver ad={selectedAd} onClose={() => setSelectedAd(null)} onAction={(id, action) => { handleAdAction(id, action); if (action !== 'regenerate') setSelectedAd(a => a ? { ...a, status: (action === 'approve' ? 'Approved' : action === 'reject' ? 'Rejected' : 'Scheduled') as AdStatus } : null) }} />
+            )}
+
+            {toast && (
+                <div className="fixed bottom-6 right-6 z-[var(--z-toast)] rounded-xl border border-violet-500/30 bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] shadow-2xl backdrop-blur animate-slide-up">
+                    {toast}
+                </div>
             )}
         </div>
     )

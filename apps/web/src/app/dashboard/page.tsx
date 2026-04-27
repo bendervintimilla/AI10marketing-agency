@@ -326,9 +326,9 @@ export default function DashboardPage() {
                     <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
                             <h2 className="text-sm font-semibold text-[var(--color-text)]">Recent Activity</h2>
-                            <button className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors">
+                            <Link href="/dashboard/audits" className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors">
                                 View all
-                            </button>
+                            </Link>
                         </div>
                         <div className="divide-y divide-[var(--color-border)]">
                             {ACTIVITY.map((a) => (

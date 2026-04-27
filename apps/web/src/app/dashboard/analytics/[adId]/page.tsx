@@ -265,6 +265,14 @@ export default function AdAnalyticsPage() {
     const params = useParams()
     const adId = params.adId as string
     const [activeSeries, setActiveSeries] = useState<Set<SeriesKey>>(new Set<SeriesKey>(['impressions', 'clicks', 'engagementRate'] as SeriesKey[]))
+    const [annotations, setAnnotations] = useState<AIAnnotation[]>(AI_ANNOTATIONS)
+    const [toast, setToast] = useState<string | null>(null)
+
+    const updateAnnotation = (id: string, status: 'ACCEPTED' | 'DISMISSED') => {
+        setAnnotations(prev => prev.map(a => a.id === id ? { ...a, status } : a))
+        setToast(status === 'ACCEPTED' ? 'Recommendation accepted' : 'Recommendation dismissed')
+        window.setTimeout(() => setToast(null), 2400)
+    }
 
     const toggleSeries = (k: SeriesKey) => {
         setActiveSeries(prev => {
@@ -347,7 +355,7 @@ export default function AdAnalyticsPage() {
                         </span>
                     </div>
                 </div>
-                <TimeSeriesChart data={TIME_SERIES} activeSeries={activeSeries} annotations={AI_ANNOTATIONS} />
+                <TimeSeriesChart data={TIME_SERIES} activeSeries={activeSeries} annotations={annotations} />
             </div>
 
             {/* ── Comparison + Heatmap ── */}
@@ -381,7 +389,7 @@ export default function AdAnalyticsPage() {
                     </div>
                 </div>
                 <div className="divide-y divide-[var(--color-border)]">
-                    {AI_ANNOTATIONS.map(ann => {
+                    {annotations.map(ann => {
                         const typeColor = ann.type === 'PAUSE' ? { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' }
                             : ann.type === 'BUDGET' ? { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' }
                                 : { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' }
@@ -397,8 +405,18 @@ export default function AdAnalyticsPage() {
                                 </div>
                                 {ann.status === 'PENDING' && (
                                     <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                                        <button id={`accept-rec-${ann.id}`} className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">Accept</button>
-                                        <button id={`dismiss-rec-${ann.id}`} className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/5 text-[var(--color-text-muted)] hover:bg-white/10 transition-colors">Dismiss</button>
+                                        <button
+                                            onClick={() => updateAnnotation(ann.id, 'ACCEPTED')}
+                                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                                        >
+                                            Accept
+                                        </button>
+                                        <button
+                                            onClick={() => updateAnnotation(ann.id, 'DISMISSED')}
+                                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/5 text-[var(--color-text-muted)] hover:bg-white/10 transition-colors"
+                                        >
+                                            Dismiss
+                                        </button>
                                     </div>
                                 )}
                                 {ann.status !== 'PENDING' && (
@@ -411,6 +429,12 @@ export default function AdAnalyticsPage() {
                     })}
                 </div>
             </div>
+
+            {toast && (
+                <div className="fixed bottom-6 right-6 z-[var(--z-toast)] rounded-xl border border-violet-500/30 bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] shadow-2xl backdrop-blur animate-slide-up">
+                    {toast}
+                </div>
+            )}
         </div>
     )
 }
