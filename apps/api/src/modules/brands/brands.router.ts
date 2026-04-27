@@ -43,34 +43,31 @@ export async function brandsRoutes(fastify: FastifyInstance) {
     );
 
     // ── POST /brands ────────────────────────────────────────────────────────
-    fastify.post<{ Body: any }>(
-        '/brands',
-        { preHandler: requireAuth },
-        async (req, reply) => {
-            const userId = (req as any).user?.userId;
-            const user = await prisma.user.findUnique({ where: { id: userId } });
-            if (!user) return reply.status(401).send({ error: 'Unauthorized' });
+    fastify.post('/brands', { preHandler: requireAuth }, async (req, reply) => {
+        const userId = (req as any).user?.userId;
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return reply.status(401).send({ error: 'Unauthorized' });
 
-            const brand = await prisma.brand.create({
-                data: {
-                    organizationId: user.organizationId,
-                    name: req.body.name,
-                    instagramHandle: req.body.instagramHandle,
-                    instagramUserId: req.body.instagramUserId,
-                    websiteUrl: req.body.websiteUrl,
-                    metaAdAccountId: req.body.metaAdAccountId,
-                    googleAdsCustomerId: req.body.googleAdsCustomerId,
-                    tiktokAdvertiserId: req.body.tiktokAdvertiserId,
-                    followerCount: req.body.followerCount,
-                    description: req.body.description,
-                },
-            });
-            return reply.status(201).send(brand);
-        }
-    );
+        const body = req.body as Record<string, any>;
+        const brand = await prisma.brand.create({
+            data: {
+                organizationId: user.organizationId,
+                name: body.name,
+                instagramHandle: body.instagramHandle,
+                instagramUserId: body.instagramUserId,
+                websiteUrl: body.websiteUrl,
+                metaAdAccountId: body.metaAdAccountId,
+                googleAdsCustomerId: body.googleAdsCustomerId,
+                tiktokAdvertiserId: body.tiktokAdvertiserId,
+                followerCount: body.followerCount,
+                description: body.description,
+            },
+        });
+        return reply.status(201).send(brand);
+    });
 
     // ── PATCH /brands/:id ───────────────────────────────────────────────────
-    fastify.patch<{ Params: { id: string }; Body: any }>(
+    fastify.patch<{ Params: { id: string } }>(
         '/brands/:id',
         { preHandler: requireAuth },
         async (req, reply) => {
@@ -85,7 +82,7 @@ export async function brandsRoutes(fastify: FastifyInstance) {
 
             const brand = await prisma.brand.update({
                 where: { id: req.params.id },
-                data: req.body,
+                data: req.body as any,
             });
             return reply.send(brand);
         }
