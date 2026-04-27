@@ -14,6 +14,7 @@ import type { Job } from 'bullmq';
 import { spawn } from 'child_process';
 import path from 'path';
 import { prisma } from '@agency/db';
+import { decrypt } from '../lib/crypto';
 
 const AUDITS_PATH = path.resolve(__dirname, '../../../audits/src/audit_runner.py');
 const PYTHON = process.env.PYTHON_BIN || 'python3';
@@ -70,10 +71,28 @@ async function buildSpec(brandId: string, platform: string): Promise<object> {
 
     if (platform === 'INSTAGRAM') {
         if (!brand.instagramUserId) {
-            throw new Error(`Brand "${brand.name}" has no instagramUserId set`);
+            throw new Error(`Brand "${brand.name}" has no instagramUserId set — connect Meta in Settings → Accounts.`);
         }
-        const token = process.env.META_ACCESS_TOKEN;
-        if (!token) throw new Error('META_ACCESS_TOKEN env var not set');
+
+        // Prefer the org's stored Meta token (from OAuth via /publish/connect/instagram).
+        // Fall back to the legacy META_ACCESS_TOKEN env var so existing setups keep working.
+        let token = process.env.META_ACCESS_TOKEN;
+        const account = await prisma.socialAccount.findFirst({
+            where: { organizationId: brand.organizationId, platform: 'INSTAGRAM' },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (account?.accessToken) {
+            try {
+                token = decrypt(account.accessToken);
+            } catch {
+                // Fall through — env var still works as last resort.
+            }
+        }
+        if (!token) {
+            throw new Error(
+                'No Meta access token available — connect Facebook in Settings → Accounts.'
+            );
+        }
         return {
             platform: 'INSTAGRAM',
             ig_user_id: brand.instagramUserId,
