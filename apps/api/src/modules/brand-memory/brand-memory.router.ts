@@ -57,7 +57,7 @@ async function logEvent(
                 brandMemoryId,
                 actorId,
                 action,
-                context: context ?? null,
+                context: (context ?? undefined) as any,
             },
         })
         .catch(() => {
@@ -220,7 +220,7 @@ export async function brandMemoryRoutes(fastify: FastifyInstance) {
                     fileSizeBytes: req.body.fileSizeBytes ?? null,
                     caption: req.body.caption ?? null,
                     tags: req.body.tags ?? [],
-                    usageRights: req.body.usageRights ?? null,
+                    usageRights: (req.body.usageRights ?? undefined) as any,
                     source: req.body.source ?? 'user_upload',
                 },
             });
