@@ -20,7 +20,7 @@ import { encrypt, decrypt } from '../../lib/crypto';
 import { getPublishQueue } from '../../lib/queue';
 import { socialAccount } from '@agency/db';
 import { unpublishAd } from './publishers';
-import { getMetaAuthUrl, exchangeMetaCode, getLongLivedToken, getPageToken } from './oauth/meta';
+import { getMetaAuthUrl, exchangeMetaCode, getLongLivedToken, getPageToken, listAllPagesWithInstagram } from './oauth/meta';
 import { getTikTokAuthUrl, exchangeTikTokCode, revokeTikTokToken } from './oauth/tiktok';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -36,6 +36,119 @@ function parsePlatform(raw: string): Platform {
 // In-memory PKCE store for TikTok (keyed by OAuth state)
 // In production, store in Redis with TTL
 const tiktokPkceStore = new Map<string, string>();
+
+/** Normalize a string for matching: lowercase, strip @ and non-alphanum. */
+function norm(s: string): string {
+    return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Walk every Page the user can access, and for each Page that has a linked
+ * Instagram Business account, try to match it to a Brand row in the same org
+ * (by IG username -> instagramHandle, or by Page name -> Brand name).
+ *
+ * Returns a summary with counts so the UI can show the user what landed.
+ */
+export async function resolveOrgBrandInstagramIds(args: {
+    organizationId: string;
+    metaUserId: string;
+    metaUserToken: string;
+}): Promise<{
+    brandsTotal: number;
+    matched: { brandId: string; brandName: string; igUsername: string; igUserId: string }[];
+    unmatchedBrands: string[];
+    unmatchedPages: { pageName: string; igUsername?: string }[];
+}> {
+    const pages = await listAllPagesWithInstagram(args.metaUserId, args.metaUserToken);
+    const brands = await prisma.brand.findMany({
+        where: { organizationId: args.organizationId },
+        select: { id: true, name: true, instagramHandle: true, instagramUserId: true },
+    });
+
+    const matched: {
+        brandId: string;
+        brandName: string;
+        igUsername: string;
+        igUserId: string;
+    }[] = [];
+    const usedPageIdx = new Set<number>();
+
+    // Pass 1: exact match by IG username == brand handle
+    for (const brand of brands) {
+        const handle = norm(brand.instagramHandle ?? '');
+        if (!handle) continue;
+        const idx = pages.findIndex(
+            (p, i) =>
+                !usedPageIdx.has(i) &&
+                p.instagramAccountId &&
+                p.instagramUsername &&
+                norm(p.instagramUsername) === handle
+        );
+        if (idx >= 0) {
+            usedPageIdx.add(idx);
+            const p = pages[idx];
+            await prisma.brand.update({
+                where: { id: brand.id },
+                data: { instagramUserId: p.instagramAccountId! },
+            });
+            matched.push({
+                brandId: brand.id,
+                brandName: brand.name,
+                igUsername: p.instagramUsername!,
+                igUserId: p.instagramAccountId!,
+            });
+        }
+    }
+
+    // Pass 2: fuzzy match on Page name vs Brand name for remaining brands
+    const remainingBrands = brands.filter(
+        (b) => !matched.find((m) => m.brandId === b.id)
+    );
+    for (const brand of remainingBrands) {
+        const bn = norm(brand.name);
+        if (!bn) continue;
+        const idx = pages.findIndex((p, i) => {
+            if (usedPageIdx.has(i)) return false;
+            if (!p.instagramAccountId) return false;
+            const pn = norm(p.pageName);
+            return pn.includes(bn) || bn.includes(pn);
+        });
+        if (idx >= 0) {
+            usedPageIdx.add(idx);
+            const p = pages[idx];
+            await prisma.brand.update({
+                where: { id: brand.id },
+                data: { instagramUserId: p.instagramAccountId! },
+            });
+            matched.push({
+                brandId: brand.id,
+                brandName: brand.name,
+                igUsername: p.instagramUsername || p.pageName,
+                igUserId: p.instagramAccountId!,
+            });
+        }
+    }
+
+    const unmatchedBrands = brands
+        .filter((b) => !matched.find((m) => m.brandId === b.id))
+        .map((b) => b.name);
+    const unmatchedPages: { pageName: string; igUsername?: string }[] = [];
+    pages.forEach((p, i) => {
+        if (!usedPageIdx.has(i)) {
+            unmatchedPages.push({
+                pageName: p.pageName,
+                igUsername: p.instagramUsername,
+            });
+        }
+    });
+
+    return {
+        brandsTotal: brands.length,
+        matched,
+        unmatchedBrands,
+        unmatchedPages,
+    };
+}
 
 // ─── Plugin ──────────────────────────────────────────────────────────────────
 
@@ -126,7 +239,29 @@ export async function publishRoutes(fastify: FastifyInstance) {
                 accountName: pageName,
                 accountId: instagramAccountId,
             });
-            return { success: true, platform: 'INSTAGRAM', accountId: instagramAccountId };
+
+            // Bulk-resolve every brand's instagramUserId in the same org from
+            // this single OAuth pass. Errors here don't block the connection.
+            let resolveSummary: any = null;
+            try {
+                resolveSummary = await resolveOrgBrandInstagramIds({
+                    organizationId: orgId,
+                    metaUserId: userId,
+                    metaUserToken: longToken,
+                });
+            } catch (e: any) {
+                req.log.warn({ err: e?.message }, 'Brand IG bulk-resolve failed');
+            }
+
+            const frontend = process.env.FRONTEND_URL || 'http://localhost:3000';
+            const params = new URLSearchParams({
+                connected: 'instagram',
+                accountId: instagramAccountId,
+            });
+            if (resolveSummary) {
+                params.set('resolution', JSON.stringify(resolveSummary));
+            }
+            return reply.redirect(`${frontend}/dashboard/settings/accounts?${params.toString()}`);
         }
 
         await socialAccount.upsert({
@@ -293,6 +428,56 @@ export async function publishRoutes(fastify: FastifyInstance) {
             });
 
             return { queue: scheduledAds };
+        }
+    );
+
+    // POST /publish/resolve-brand-instagram-ids
+    // Re-runs the bulk Page→Brand match using the stored Meta token, without
+    // requiring a fresh OAuth. Useful after adding/renaming brands.
+    fastify.post<{ Body: { orgId: string } }>(
+        '/publish/resolve-brand-instagram-ids',
+        async (req, reply) => {
+            const { orgId } = req.body;
+            if (!orgId) return reply.status(400).send({ error: 'orgId required' });
+
+            // Find an INSTAGRAM social account for this org with a token we can use.
+            const account = await prisma.socialAccount.findFirst({
+                where: { organizationId: orgId, platform: Platform.INSTAGRAM },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (!account || !account.accessToken) {
+                return reply
+                    .status(400)
+                    .send({ error: 'No Instagram connection found — connect Facebook first.' });
+            }
+
+            // The stored token is a Page Access Token. To list /me/accounts we
+            // need the user token, which we don't have post-callback. Fall back
+            // to using the page token to query just that page's IG account.
+            const pageToken = decrypt(account.accessToken);
+
+            try {
+                // Try the user-level call first (works if it's actually a user token).
+                const meRes = await fetch(
+                    `https://graph.facebook.com/v19.0/me?access_token=${pageToken}`
+                );
+                const me = (await meRes.json()) as { id?: string };
+                if (!me.id) {
+                    return reply
+                        .status(400)
+                        .send({ error: 'Stored token cannot list pages — re-connect Facebook.' });
+                }
+                const summary = await resolveOrgBrandInstagramIds({
+                    organizationId: orgId,
+                    metaUserId: me.id,
+                    metaUserToken: pageToken,
+                });
+                return summary;
+            } catch (err: any) {
+                return reply
+                    .status(500)
+                    .send({ error: 'resolve_failed', message: err?.message });
+            }
         }
     );
 }

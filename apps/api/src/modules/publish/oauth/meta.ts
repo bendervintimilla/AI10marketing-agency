@@ -114,6 +114,64 @@ export async function getPageToken(userId: string, userToken: string): Promise<{
 }
 
 /**
+ * List ALL Pages the user has access to, with their linked IG Business Account
+ * (when present). Used to bulk-resolve brand.instagramUserId in one OAuth pass.
+ */
+export interface PageWithIG {
+    pageId: string;
+    pageName: string;
+    pageToken: string;
+    instagramAccountId?: string;
+    instagramUsername?: string;
+}
+
+export async function listAllPagesWithInstagram(
+    userId: string,
+    userToken: string
+): Promise<PageWithIG[]> {
+    const out: PageWithIG[] = [];
+    let next: string | null =
+        `${GRAPH_BASE}/${userId}/accounts?fields=id,name,access_token&limit=100&access_token=${userToken}`;
+    while (next) {
+        const res = await fetch(next);
+        if (!res.ok) {
+            const err: any = await res.json().catch(() => ({}));
+            throw new Error(`Meta /me/accounts failed: ${JSON.stringify(err)}`);
+        }
+        const data = (await res.json()) as {
+            data: Array<{ id: string; name: string; access_token: string }>;
+            paging?: { next?: string };
+        };
+        for (const p of data.data ?? []) {
+            const igInfo = await fetchPageInstagram(p.id, p.access_token).catch(() => undefined);
+            out.push({
+                pageId: p.id,
+                pageName: p.name,
+                pageToken: p.access_token,
+                instagramAccountId: igInfo?.id,
+                instagramUsername: igInfo?.username,
+            });
+        }
+        next = data.paging?.next ?? null;
+    }
+    return out;
+}
+
+async function fetchPageInstagram(
+    pageId: string,
+    pageToken: string
+): Promise<{ id: string; username?: string } | undefined> {
+    const res = await fetch(
+        `${GRAPH_BASE}/${pageId}?fields=instagram_business_account{id,username}&access_token=${pageToken}`
+    );
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as {
+        instagram_business_account?: { id: string; username?: string };
+    };
+    return data.instagram_business_account;
+}
+
+/**
  * Refresh a long-lived Meta token (returns a new 60-day token).
  * Meta refreshes automatically when you call this within 60 days before expiry.
  */
