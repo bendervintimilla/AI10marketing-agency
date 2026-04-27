@@ -21,6 +21,8 @@ import { mediaRoutes } from "./modules/media/routes";
 import { copyRoutes } from "./modules/copy/copy.routes";
 import { auditsRoutes } from "./modules/audits/audits.router";
 import { brandsRoutes } from "./modules/brands/brands.router";
+import { brandMemoryRoutes } from "./modules/brand-memory/brand-memory.router";
+import { claudeDesignRoutes } from "./modules/claude-design/claude-design.router";
 import { globalErrorHandler } from "./lib/error-handler";
 import { prisma } from "@agency/db";
 import { getRedis } from "./lib/redis";
@@ -100,6 +102,8 @@ server.register(mediaRoutes);
 server.register(copyRoutes);
 server.register(auditsRoutes);
 server.register(brandsRoutes);
+server.register(brandMemoryRoutes);
+server.register(claudeDesignRoutes);
 
 // ─── Graceful Shutdown ───────────────────────────────────────────────────────
 async function shutdown(signal: string) {

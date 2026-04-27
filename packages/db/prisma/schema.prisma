@@ -64,6 +64,30 @@ enum AssetType {
   PRODUCT_PHOTO
 }
 
+enum BrandAssetType {
+  LOGO
+  LOGO_VARIANT
+  PRODUCT_PHOTO
+  LIFESTYLE_PHOTO
+  BROLL_VIDEO
+  FONT_FILE
+  MOODBOARD
+  TESTIMONIAL
+  BRIEF_DOC
+  REFERENCE_AD
+  BRAND_GUIDELINES
+  COLOR_SWATCH
+}
+
+enum BrandMemoryAction {
+  READ
+  WRITE
+  DELETE
+  RAG_QUERY
+  ASSET_UPLOAD
+  ASSET_DELETE
+}
+
 enum CampaignGoal {
   AWARENESS
   ENGAGEMENT
@@ -133,6 +157,9 @@ model Organization {
   subscriptions     Subscription[]
   usageRecords      UsageRecord[]
   notifications     Notification[]
+  brandMemories     BrandMemory[]
+  brandAssets       BrandAsset[]
+  brandMemoryEvents BrandMemoryEvent[]
 }
 
 model User {
@@ -175,6 +202,7 @@ model Brand {
   ads            Ad[]
   auditRuns      AuditRun[]
   auditSchedules AuditSchedule[]
+  memory         BrandMemory?
 
   @@index([organizationId])
 }
@@ -501,4 +529,82 @@ model AuditSchedule {
   createdAt DateTime      @default(now())
 
   @@index([enabled, nextRunAt])
+}
+
+// ─── Brand Memory (per-tenant, per-brand resource store) ────────────────────
+//
+// One BrandMemory per Brand. Holds STRUCTURED brand context (palettes, voice,
+// personas, legal constraints) used by AI generation pipelines. Binary assets
+// (logos, photos, b-roll) live in BrandAsset, linked to a BrandMemory.
+
+model BrandMemory {
+  id             String   @id @default(cuid())
+  organizationId String   // tenant scope (denormalized for query speed + safety)
+  brandId        String   @unique
+
+  // Structured memory — JSON for evolving schema without migrations
+  visualIdentity   Json?  // extended palette, gradients, do/don'ts visuales
+  voiceProfile     Json?  // tone, banned words, signature phrases
+  productCatalog   Json?  // SKUs, descriptions, allowed claims
+  audiencePersonas Json?  // 2-5 personas with psychographic data
+  competitorRefs   Json?  // brands to NOT imitate / reference
+  legalConstraints Json?  // banned claims, regulations (alcohol, health, finance)
+  designSystem     Json?  // shadow tokens, spacing, layout rules for image-gen
+
+  // Free-form notes the team or Claude can append to
+  notes          String?  @db.Text
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand          Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  assets         BrandAsset[]
+  events         BrandMemoryEvent[]
+
+  @@index([organizationId, brandId])
+}
+
+model BrandAsset {
+  id             String         @id @default(cuid())
+  organizationId String         // tenant scope (must match brandMemory.organizationId)
+  brandMemoryId  String
+  type           BrandAssetType
+  url            String         // S3 / R2 / Supabase storage URL
+  mimeType       String
+  width          Int?
+  height         Int?
+  durationSec    Float?         // video duration
+  fileSizeBytes  Int?
+  caption        String?        // human description for retrieval
+  tags           String[]       // ["primary-logo", "white-bg", "vertical"]
+  // Embedding column lives in raw SQL — pgvector type added via migration
+  // embedding      Unsupported("vector(1536)")?
+  usageRights    Json?          // license, expiration, restrictions
+  source         String?        // "user_upload" | "scraped:instagram" | "claude_generated"
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandMemory    BrandMemory  @relation(fields: [brandMemoryId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, brandMemoryId, type])
+  @@index([brandMemoryId, createdAt])
+}
+
+model BrandMemoryEvent {
+  // Audit log for memory access — multi-tenant safety + RAG observability
+  id             String            @id @default(cuid())
+  organizationId String
+  brandMemoryId  String
+  actorId        String?           // userId or "system:agent-name"
+  action         BrandMemoryAction
+  context        Json?             // prompt used, assets returned, model name
+  createdAt      DateTime          @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandMemory    BrandMemory  @relation(fields: [brandMemoryId], references: [id], onDelete: Cascade)
+
+  @@index([brandMemoryId, createdAt])
+  @@index([organizationId, action])
 }

@@ -1,0 +1,16 @@
+{
+    "name": "@agency/extension",
+    "version": "0.1.0",
+    "private": true,
+    "description": "AdAgency AI browser extension — token capture and external action helper",
+    "scripts": {
+        "build": "tsc && cp -r public/* dist/ && cp src/manifest.json dist/manifest.json",
+        "dev": "tsc --watch",
+        "type-check": "tsc --noEmit",
+        "package": "cd dist && zip -r ../adagency-extension.zip ."
+    },
+    "devDependencies": {
+        "@types/chrome": "^0.0.270",
+        "typescript": "^5.4.5"
+    }
+}

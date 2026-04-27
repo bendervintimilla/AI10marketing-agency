@@ -40,7 +40,12 @@ def audit_landing(url: str, brand_name: str = "") -> dict:
 
     try:
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; AI10MarketingBot/1.0)"
+            # Pose as a real browser — many sites reject explicit bot UAs (HTTP 406)
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "es-EC,es;q=0.9,en;q=0.8",
         })
         resp = urllib.request.urlopen(req, timeout=15)
         html = resp.read().decode("utf-8", errors="replace")
