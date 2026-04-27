@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { apiGet, apiPost } from '@/lib/api'
+import { apiFetch, apiGet, apiPost } from '@/lib/api'
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
@@ -23,6 +23,32 @@ interface BrandMemoryRow {
     designSystem?: any
     notes?: string | null
 }
+
+interface BrandAsset {
+    id: string
+    type: string
+    url: string
+    mimeType: string
+    width?: number | null
+    height?: number | null
+    caption?: string | null
+    tags?: string[]
+    source?: string | null
+    createdAt: string
+}
+
+const ASSET_TYPES = [
+    { value: 'LOGO', label: 'Logo' },
+    { value: 'LOGO_VARIANT', label: 'Logo variant' },
+    { value: 'PRODUCT_PHOTO', label: 'Product photo' },
+    { value: 'LIFESTYLE_PHOTO', label: 'Lifestyle photo' },
+    { value: 'BROLL_VIDEO', label: 'B-roll video' },
+    { value: 'MOODBOARD', label: 'Moodboard' },
+    { value: 'BRAND_GUIDELINES', label: 'Brand guidelines doc' },
+    { value: 'BRIEF_DOC', label: 'Brief / doc' },
+    { value: 'REFERENCE_AD', label: 'Reference ad' },
+    { value: 'COLOR_SWATCH', label: 'Color swatch' },
+] as const
 
 type ToolName =
     | 'load_brand_memory'
@@ -65,7 +91,8 @@ export default function ClaudeDesignPage() {
     const [brands, setBrands] = useState<Brand[]>([])
     const [brandId, setBrandId] = useState<string>('')
     const [memory, setMemory] = useState<BrandMemoryRow | null>(null)
-    const [memoryOpen, setMemoryOpen] = useState(false)
+    const [assets, setAssets] = useState<BrandAsset[]>([])
+    const [projectOpen, setProjectOpen] = useState(false)
     const [thread, setThread] = useState<ChatTurn[]>([])
     const [input, setInput] = useState('')
     const [sending, setSending] = useState(false)
@@ -82,15 +109,69 @@ export default function ClaudeDesignPage() {
             .catch((err) => setError(err.message || 'Failed to load brands'))
     }, [])
 
-    /* Load brand memory whenever brand changes; reset thread */
+    /* Load brand memory + assets whenever brand changes; reset thread */
     useEffect(() => {
         if (!brandId) return
         setThread([])
         setMemory(null)
+        setAssets([])
         apiGet<BrandMemoryRow>(`/brands/${brandId}/memory`)
             .then((res) => setMemory(res))
             .catch(() => setMemory(null))
+        apiGet<BrandAsset[]>(`/brands/${brandId}/memory/assets`)
+            .then((res) => setAssets(Array.isArray(res) ? res : []))
+            .catch(() => setAssets([]))
     }, [brandId])
+
+    async function refreshAssets() {
+        if (!brandId) return
+        const res = await apiGet<BrandAsset[]>(`/brands/${brandId}/memory/assets`).catch(
+            () => []
+        )
+        setAssets(Array.isArray(res) ? res : [])
+    }
+
+    async function refreshMemory() {
+        if (!brandId) return
+        const res = await apiGet<BrandMemoryRow>(`/brands/${brandId}/memory`).catch(
+            () => null
+        )
+        if (res) setMemory(res)
+    }
+
+    async function addResource(args: {
+        type: string
+        url: string
+        caption?: string
+        tags?: string[]
+    }) {
+        if (!brandId) return
+        const mimeType = guessMimeType(args.url)
+        await apiPost(`/brands/${brandId}/memory/assets`, {
+            type: args.type,
+            url: args.url,
+            mimeType,
+            caption: args.caption,
+            tags: args.tags ?? [],
+            source: 'manual_url',
+        })
+        await refreshAssets()
+    }
+
+    async function deleteResource(id: string) {
+        if (!brandId) return
+        await apiFetch(`/brands/${brandId}/memory/assets/${id}`, { method: 'DELETE' })
+        setAssets((prev) => prev.filter((a) => a.id !== id))
+    }
+
+    async function saveNotes(notes: string) {
+        if (!brandId) return
+        await apiFetch(`/brands/${brandId}/memory`, {
+            method: 'PUT',
+            body: JSON.stringify({ notes }),
+        })
+        await refreshMemory()
+    }
 
     /* Auto-scroll on new messages */
     useEffect(() => {
@@ -173,8 +254,9 @@ export default function ClaudeDesignPage() {
                         brandId={brandId}
                         onChangeBrand={setBrandId}
                         selectedBrand={selectedBrand}
-                        onToggleMemory={() => setMemoryOpen((v) => !v)}
-                        memoryOpen={memoryOpen}
+                        onToggleProject={() => setProjectOpen((v) => !v)}
+                        projectOpen={projectOpen}
+                        assetCount={assets.length}
                     />
 
                     <div className="cd-thread" ref={scrollRef}>
@@ -205,11 +287,16 @@ export default function ClaudeDesignPage() {
                     />
                 </div>
 
-                {/* Memory panel */}
-                {memoryOpen && (
-                    <MemoryPanel
+                {/* Project panel (memory + resources + notes) */}
+                {projectOpen && (
+                    <ProjectPanel
                         memory={memory}
-                        onClose={() => setMemoryOpen(false)}
+                        assets={assets}
+                        brandName={selectedBrand?.name}
+                        onClose={() => setProjectOpen(false)}
+                        onAddResource={addResource}
+                        onDeleteResource={deleteResource}
+                        onSaveNotes={saveNotes}
                     />
                 )}
             </div>
@@ -225,15 +312,17 @@ function Header({
     brandId,
     onChangeBrand,
     selectedBrand,
-    onToggleMemory,
-    memoryOpen,
+    onToggleProject,
+    projectOpen,
+    assetCount,
 }: {
     brands: Brand[]
     brandId: string
     onChangeBrand: (id: string) => void
     selectedBrand: Brand | null
-    onToggleMemory: () => void
-    memoryOpen: boolean
+    onToggleProject: () => void
+    projectOpen: boolean
+    assetCount: number
 }) {
     return (
         <header className="cd-header">
@@ -266,11 +355,12 @@ function Header({
             </div>
             <button
                 type="button"
-                onClick={onToggleMemory}
-                className={`cd-memory-toggle ${memoryOpen ? 'is-active' : ''}`}
+                onClick={onToggleProject}
+                className={`cd-memory-toggle ${projectOpen ? 'is-active' : ''}`}
             >
                 <BrainIcon />
-                Memory
+                Project
+                {assetCount > 0 && <span className="cd-count">{assetCount}</span>}
             </button>
         </header>
     )
@@ -748,48 +838,340 @@ function Composer({
     )
 }
 
-/* ─── Memory side panel ─────────────────────────────────────────────────── */
+/* ─── Project side panel (memory + resources + notes) ───────────────────── */
 
-function MemoryPanel({
+type ProjectTab = 'memory' | 'resources' | 'notes'
+
+function ProjectPanel({
     memory,
+    assets,
+    brandName,
     onClose,
+    onAddResource,
+    onDeleteResource,
+    onSaveNotes,
 }: {
     memory: BrandMemoryRow | null
+    assets: BrandAsset[]
+    brandName?: string
     onClose: () => void
+    onAddResource: (a: { type: string; url: string; caption?: string; tags?: string[] }) => Promise<void>
+    onDeleteResource: (id: string) => Promise<void>
+    onSaveNotes: (notes: string) => Promise<void>
 }) {
+    const [tab, setTab] = useState<ProjectTab>('resources')
+
     return (
         <aside className="cd-mem">
             <div className="cd-mem-head">
                 <div className="cd-mem-title">
-                    <BrainIcon /> Brand memory
+                    <BrainIcon /> Project · {brandName || ''}
                 </div>
                 <button type="button" onClick={onClose} className="cd-mem-close">×</button>
             </div>
-            <div className="cd-mem-body">
-                {!memory && <p className="cd-mem-empty">Loading…</p>}
-                {memory && (
-                    <>
-                        <MemoryBlock title="Visual identity" data={memory.visualIdentity} />
-                        <MemoryBlock title="Voice profile" data={memory.voiceProfile} />
-                        <MemoryBlock title="Audience personas" data={memory.audiencePersonas} />
-                        <MemoryBlock title="Product catalog" data={memory.productCatalog} />
-                        <MemoryBlock title="Competitor refs" data={memory.competitorRefs} />
-                        <MemoryBlock title="Legal constraints" data={memory.legalConstraints} />
-                        <MemoryBlock title="Design system" data={memory.designSystem} />
-                        {memory.notes && (
-                            <div className="cd-mem-block">
-                                <div className="cd-mem-block-title">Notes</div>
-                                <p className="cd-mem-notes">{memory.notes}</p>
-                            </div>
-                        )}
-                    </>
-                )}
-                <p className="cd-mem-foot">
-                    Claude reads & writes this memory automatically during chat.
-                </p>
+            <div className="cd-tabs">
+                {(['resources', 'memory', 'notes'] as ProjectTab[]).map((t) => (
+                    <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTab(t)}
+                        className={`cd-tab ${tab === t ? 'is-active' : ''}`}
+                    >
+                        {t === 'resources'
+                            ? `Resources${assets.length ? ` · ${assets.length}` : ''}`
+                            : t === 'memory'
+                            ? 'Memory'
+                            : 'Notes'}
+                    </button>
+                ))}
             </div>
+            <div className="cd-mem-body">
+                {tab === 'resources' && (
+                    <ResourcesTab
+                        assets={assets}
+                        onAdd={onAddResource}
+                        onDelete={onDeleteResource}
+                    />
+                )}
+                {tab === 'memory' && <MemoryTab memory={memory} />}
+                {tab === 'notes' && (
+                    <NotesTab notes={memory?.notes || ''} onSave={onSaveNotes} />
+                )}
+            </div>
+            <p className="cd-mem-foot">
+                Claude reads & writes everything here during chat — including resources & notes.
+            </p>
         </aside>
     )
+}
+
+function MemoryTab({ memory }: { memory: BrandMemoryRow | null }) {
+    if (!memory) return <p className="cd-mem-empty">Loading…</p>
+    return (
+        <div className="cd-mem-stack">
+            <MemoryBlock title="Visual identity" data={memory.visualIdentity} />
+            <MemoryBlock title="Voice profile" data={memory.voiceProfile} />
+            <MemoryBlock title="Audience personas" data={memory.audiencePersonas} />
+            <MemoryBlock title="Product catalog" data={memory.productCatalog} />
+            <MemoryBlock title="Competitor refs" data={memory.competitorRefs} />
+            <MemoryBlock title="Legal constraints" data={memory.legalConstraints} />
+            <MemoryBlock title="Design system" data={memory.designSystem} />
+        </div>
+    )
+}
+
+function NotesTab({
+    notes,
+    onSave,
+}: {
+    notes: string
+    onSave: (n: string) => Promise<void>
+}) {
+    const [draft, setDraft] = useState(notes)
+    const [saving, setSaving] = useState(false)
+    const [savedAt, setSavedAt] = useState<number | null>(null)
+
+    useEffect(() => {
+        setDraft(notes)
+    }, [notes])
+
+    const dirty = draft !== notes
+
+    async function handleSave() {
+        setSaving(true)
+        try {
+            await onSave(draft)
+            setSavedAt(Date.now())
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <div className="cd-notes">
+            <p className="cd-mem-help">
+                Free-form notes. Drop in URLs, do/don&apos;ts, brand stories, anything Claude
+                should remember.
+            </p>
+            <textarea
+                className="cd-notes-area"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="e.g. Always reference the rooftop view. Avoid mentioning competitors. Logo wordmark only on light backgrounds."
+                rows={12}
+            />
+            <div className="cd-notes-actions">
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!dirty || saving}
+                    className="cd-btn-save"
+                >
+                    {saving ? 'Saving…' : dirty ? 'Save notes' : savedAt ? 'Saved' : 'Up to date'}
+                </button>
+            </div>
+        </div>
+    )
+}
+
+function ResourcesTab({
+    assets,
+    onAdd,
+    onDelete,
+}: {
+    assets: BrandAsset[]
+    onAdd: (a: { type: string; url: string; caption?: string; tags?: string[] }) => Promise<void>
+    onDelete: (id: string) => Promise<void>
+}) {
+    const [showAdd, setShowAdd] = useState(assets.length === 0)
+    const [type, setType] = useState<string>('PRODUCT_PHOTO')
+    const [url, setUrl] = useState('')
+    const [caption, setCaption] = useState('')
+    const [tagsRaw, setTagsRaw] = useState('')
+    const [adding, setAdding] = useState(false)
+    const [err, setErr] = useState<string | null>(null)
+
+    async function submit(e: React.FormEvent) {
+        e.preventDefault()
+        if (!url.trim()) return
+        setAdding(true)
+        setErr(null)
+        try {
+            await onAdd({
+                type,
+                url: url.trim(),
+                caption: caption.trim() || undefined,
+                tags: tagsRaw
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter(Boolean),
+            })
+            setUrl('')
+            setCaption('')
+            setTagsRaw('')
+        } catch (e: any) {
+            setErr(e?.message || 'Failed to add resource')
+        } finally {
+            setAdding(false)
+        }
+    }
+
+    const isImage = (mime: string) => mime?.startsWith('image/')
+
+    return (
+        <div className="cd-res">
+            {assets.length === 0 && (
+                <p className="cd-mem-help">
+                    No resources yet. Add reference images, brand docs, or links Claude should
+                    use when designing.
+                </p>
+            )}
+
+            {assets.length > 0 && (
+                <div className="cd-res-grid">
+                    {assets.map((a) => (
+                        <div key={a.id} className="cd-res-card">
+                            {isImage(a.mimeType) ? (
+                                <a
+                                    href={a.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="cd-res-thumb"
+                                    style={{ backgroundImage: `url(${a.url})` }}
+                                />
+                            ) : (
+                                <a
+                                    href={a.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="cd-res-thumb cd-res-thumb-doc"
+                                >
+                                    <FileIcon />
+                                </a>
+                            )}
+                            <div className="cd-res-meta">
+                                <div className="cd-res-type">
+                                    {ASSET_TYPES.find((t) => t.value === a.type)?.label || a.type}
+                                </div>
+                                {a.caption && (
+                                    <div className="cd-res-cap">{a.caption}</div>
+                                )}
+                                {a.tags && a.tags.length > 0 && (
+                                    <div className="cd-res-tags">
+                                        {a.tags.slice(0, 3).map((t) => (
+                                            <span key={t} className="cd-token">{t}</span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                className="cd-res-del"
+                                onClick={() => onDelete(a.id)}
+                                title="Remove"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {!showAdd && (
+                <button
+                    type="button"
+                    onClick={() => setShowAdd(true)}
+                    className="cd-btn-add"
+                >
+                    + Add resource
+                </button>
+            )}
+
+            {showAdd && (
+                <form className="cd-res-form" onSubmit={submit}>
+                    <div className="cd-mem-block-title">New resource</div>
+                    <label className="cd-field">
+                        <span className="cd-field-label">Type</span>
+                        <select
+                            className="cd-input"
+                            value={type}
+                            onChange={(e) => setType(e.target.value)}
+                        >
+                            {ASSET_TYPES.map((t) => (
+                                <option key={t.value} value={t.value}>{t.label}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="cd-field">
+                        <span className="cd-field-label">URL (image, Drive, Dropbox, web)</span>
+                        <input
+                            type="url"
+                            required
+                            className="cd-input"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            placeholder="https://..."
+                        />
+                    </label>
+                    <label className="cd-field">
+                        <span className="cd-field-label">Caption</span>
+                        <input
+                            type="text"
+                            className="cd-input"
+                            value={caption}
+                            onChange={(e) => setCaption(e.target.value)}
+                            placeholder="What is this and why does it matter?"
+                        />
+                    </label>
+                    <label className="cd-field">
+                        <span className="cd-field-label">Tags (comma-separated)</span>
+                        <input
+                            type="text"
+                            className="cd-input"
+                            value={tagsRaw}
+                            onChange={(e) => setTagsRaw(e.target.value)}
+                            placeholder="rooftop, golden-hour, signature-cocktail"
+                        />
+                    </label>
+                    {err && <p className="cd-error-line">{err}</p>}
+                    <div className="cd-res-form-actions">
+                        <button
+                            type="button"
+                            onClick={() => setShowAdd(false)}
+                            className="cd-btn-cancel"
+                        >
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={adding} className="cd-btn-save">
+                            {adding ? 'Adding…' : 'Add resource'}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
+    )
+}
+
+function FileIcon() {
+    return (
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+        </svg>
+    )
+}
+
+function guessMimeType(url: string): string {
+    const lower = url.toLowerCase().split('?')[0]
+    if (lower.match(/\.(png)$/)) return 'image/png'
+    if (lower.match(/\.(jpe?g)$/)) return 'image/jpeg'
+    if (lower.match(/\.(gif)$/)) return 'image/gif'
+    if (lower.match(/\.(webp)$/)) return 'image/webp'
+    if (lower.match(/\.(svg)$/)) return 'image/svg+xml'
+    if (lower.match(/\.(mp4|mov|webm)$/)) return 'video/mp4'
+    if (lower.match(/\.(pdf)$/)) return 'application/pdf'
+    if (lower.match(/\.(docx?)$/)) return 'application/msword'
+    return 'application/octet-stream'
 }
 
 function MemoryBlock({ title, data }: { title: string; data: any }) {
