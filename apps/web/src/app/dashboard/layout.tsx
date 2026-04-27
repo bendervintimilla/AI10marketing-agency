@@ -85,8 +85,18 @@ function IconLogout() {
     )
 }
 
+function IconClaude() {
+    return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l1.9 5.6L19.5 10l-5.6 1.4L12 17l-1.9-5.6L4.5 10l5.6-1.4L12 3z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 16l.6 1.7L21.5 18.5l-1.9.4L19 21l-.6-2.1L16.5 18.5l1.9-.8L19 16z" />
+        </svg>
+    )
+}
+
 const NAV_ITEMS: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: <IconDashboard /> },
+    { label: 'Claude Design', href: '/dashboard/claude-design', icon: <IconClaude />, badge: 'New' },
     { label: 'Brand Audits', href: '/dashboard/audits', icon: <IconAnalytics /> },
     { label: 'Campaigns', href: '/dashboard/campaigns', icon: <IconCampaigns /> },
     { label: 'Media Library', href: '/dashboard/media', icon: <IconMedia /> },
@@ -135,8 +145,8 @@ function Sidebar({ open, onClose, userInitials, userEmail, userName, orgInitials
                         </svg>
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-[var(--color-text)]">AdAgency AI</p>
-                        <p className="text-[10px] text-[var(--color-text-subtle)] font-medium">Marketing Platform</p>
+                        <p className="text-sm font-bold text-[var(--color-text)]">AI10 Marketing</p>
+                        <p className="text-[10px] text-[var(--color-text-subtle)] font-medium">Powered by Claude</p>
                     </div>
                 </div>
 

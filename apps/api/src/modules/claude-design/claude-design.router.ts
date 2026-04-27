@@ -20,6 +20,7 @@ import {
     caption,
     loadBrandMemoryForClaude,
 } from '../../services/claude-design/claude-design.service';
+import { chat as chatService } from '../../services/claude-design/claude-design.chat';
 
 async function loadAuthorizedMemory(req: any, reply: any, brandId: string) {
     const userId = (req as any).user?.userId;
@@ -141,6 +142,46 @@ export async function claudeDesignRoutes(fastify: FastifyInstance) {
                 return reply
                     .status(500)
                     .send({ error: 'claude_design_failed', message: err.message });
+            }
+        }
+    );
+
+    // ── POST /brands/:brandId/claude-design/chat ────────────────────────────
+    fastify.post<{
+        Params: { brandId: string };
+        Body: {
+            messages: { role: 'user' | 'assistant'; content: any }[];
+        };
+    }>(
+        '/brands/:brandId/claude-design/chat',
+        { preHandler: requireAuth },
+        async (req, reply) => {
+            const userId = (req as any).user?.userId;
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (!user) return reply.status(401).send({ error: 'Unauthorized' });
+
+            const brand = await prisma.brand.findFirst({
+                where: { id: req.params.brandId, organizationId: user.organizationId },
+            });
+            if (!brand) return reply.status(404).send({ error: 'Brand not found' });
+
+            if (!Array.isArray(req.body.messages) || req.body.messages.length === 0) {
+                return reply.status(400).send({ error: 'messages array is required' });
+            }
+
+            try {
+                const result = await chatService({
+                    organizationId: user.organizationId,
+                    brandId: brand.id,
+                    userId: user.id,
+                    messages: req.body.messages,
+                });
+                return reply.send(result);
+            } catch (err: any) {
+                req.log.error(err, 'claude-design chat failed');
+                return reply
+                    .status(500)
+                    .send({ error: 'claude_design_chat_failed', message: err.message });
             }
         }
     );
