@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { apiGet } from '@/lib/api'
+import { useTranslation } from '@/lib/i18n'
 
 type CampaignStatus = 'Draft' | 'Active' | 'Paused' | 'Completed'
 type Platform = 'INSTAGRAM' | 'TIKTOK' | 'FACEBOOK'
@@ -136,6 +137,7 @@ function CampaignRow({ c }: { c: Campaign }) {
 const FILTERS: Array<'All' | CampaignStatus> = ['All', 'Active', 'Draft', 'Paused', 'Completed']
 
 export default function CampaignsPage() {
+    const { t } = useTranslation()
     const [campaigns, setCampaigns] = useState<Campaign[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -168,13 +170,16 @@ export default function CampaignsPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-text)]">Campaigns</h1>
+                    <h1 className="text-2xl font-bold text-[var(--color-text)]">{t('campaigns.title')}</h1>
                     <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-                        {campaigns.filter(c => c.status === 'Active').length} active · {campaigns.length} total
+                        {t('campaigns.subtitle', {
+                            active: campaigns.filter(c => c.status === 'Active').length,
+                            total: campaigns.length,
+                        })}
                     </p>
                 </div>
                 <Link href="/dashboard/campaigns/new" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 hover:scale-[1.02] active:scale-[0.98] shrink-0">
-                    <IconPlus /> New Campaign
+                    <IconPlus /> {t('campaigns.newCampaign')}
                 </Link>
             </div>
 
@@ -184,14 +189,14 @@ export default function CampaignsPage() {
                     {FILTERS.map(f => (
                         <button key={f} onClick={() => setFilter(f)} className={['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all', filter === f ? 'bg-violet-600 text-white shadow-sm' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)]'].join(' ')}>
                             {f !== 'All' && <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CFG[f as CampaignStatus].dot}`} />}
-                            {f} <span className="opacity-60">{counts[f]}</span>
+                            {t(`campaigns.filters.${f.toLowerCase()}`)} <span className="opacity-60">{counts[f]}</span>
                         </button>
                     ))}
                 </div>
                 <div className="flex items-center gap-2 flex-1 sm:justify-end">
                     <div className="relative flex-1 sm:flex-none sm:w-56">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"><IconSearch /></span>
-                        <input type="text" placeholder="Search campaigns…" value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-4 py-2 text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/10 transition-all" />
+                        <input type="text" placeholder={t('campaigns.search')} value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-4 py-2 text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/10 transition-all" />
                     </div>
                     <div className="flex items-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-1">
                         {(['grid', 'list'] as const).map(m => (
@@ -206,7 +211,7 @@ export default function CampaignsPage() {
             {/* Error */}
             {error && (
                 <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300">
-                    Failed to load campaigns: {error}
+                    {t('campaigns.loadFailed', { error })}
                 </div>
             )}
 
@@ -214,9 +219,13 @@ export default function CampaignsPage() {
             {!loading && filtered.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
                     <div className="h-16 w-16 rounded-2xl bg-violet-500/10 flex items-center justify-center mb-4 text-violet-400"><IconPlus /></div>
-                    <h3 className="text-base font-semibold text-[var(--color-text)] mb-1">No campaigns found</h3>
-                    <p className="text-sm text-[var(--color-text-muted)] mb-6">{search ? `No results for "${search}"` : `No ${filter.toLowerCase()} campaigns yet`}</p>
-                    <Link href="/dashboard/campaigns/new" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-all"><IconPlus /> Create Campaign</Link>
+                    <h3 className="text-base font-semibold text-[var(--color-text)] mb-1">{t('campaigns.empty.title')}</h3>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-6">
+                        {search
+                            ? t('campaigns.empty.search', { query: search })
+                            : t('campaigns.empty.noStatus', { status: t(`campaigns.filters.${filter.toLowerCase()}`).toLowerCase() })}
+                    </p>
+                    <Link href="/dashboard/campaigns/new" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-all"><IconPlus /> {t('campaigns.empty.create')}</Link>
                 </div>
             )}
 

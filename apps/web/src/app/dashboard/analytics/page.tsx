@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { apiGet } from '@/lib/api'
+import { useTranslation } from '@/lib/i18n'
 
 // ─── Types (match /analytics/org/overview response shape) ────────────────────
 
@@ -163,6 +164,7 @@ function SortableHeader({ label, field, current, dir, onSort }: { label: string;
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnalyticsDashboardPage() {
+    const { t } = useTranslation()
     const [sortKey, setSortKey] = useState<SortKey>('impressions')
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
     const [overview, setOverview] = useState<OrgOverview | null>(null)
@@ -216,10 +218,10 @@ export default function AnalyticsDashboardPage() {
     }
 
     const overviewStats = [
-        { label: 'Total Impressions', value: fmt(totals?.impressions ?? 0), icon: '👁', color: 'from-violet-500/20 to-violet-600/5', border: 'border-violet-500/20', iconBg: 'bg-violet-500/15 text-violet-400' },
-        { label: 'Total Reach', value: fmt(totals?.reach ?? 0), icon: '📡', color: 'from-blue-500/20 to-blue-600/5', border: 'border-blue-500/20', iconBg: 'bg-blue-500/15 text-blue-400' },
-        { label: 'Total Clicks', value: fmt(totals?.clicks ?? 0), icon: '🖱', color: 'from-emerald-500/20 to-emerald-600/5', border: 'border-emerald-500/20', iconBg: 'bg-emerald-500/15 text-emerald-400' },
-        { label: 'Avg. Engagement', value: totals ? `${(totals.avgEngagementRate ?? 0).toFixed(2)}%` : '0%', icon: '💬', color: 'from-amber-500/20 to-amber-600/5', border: 'border-amber-500/20', iconBg: 'bg-amber-500/15 text-amber-400' },
+        { label: t('analytics.totals.impressions'), value: fmt(totals?.impressions ?? 0), icon: '👁', color: 'from-violet-500/20 to-violet-600/5', border: 'border-violet-500/20', iconBg: 'bg-violet-500/15 text-violet-400' },
+        { label: t('analytics.totals.reach'), value: fmt(totals?.reach ?? 0), icon: '📡', color: 'from-blue-500/20 to-blue-600/5', border: 'border-blue-500/20', iconBg: 'bg-blue-500/15 text-blue-400' },
+        { label: t('analytics.totals.clicks'), value: fmt(totals?.clicks ?? 0), icon: '🖱', color: 'from-emerald-500/20 to-emerald-600/5', border: 'border-emerald-500/20', iconBg: 'bg-emerald-500/15 text-emerald-400' },
+        { label: t('analytics.totals.engagement'), value: totals ? `${(totals.avgEngagementRate ?? 0).toFixed(2)}%` : '0%', icon: '💬', color: 'from-amber-500/20 to-amber-600/5', border: 'border-amber-500/20', iconBg: 'bg-amber-500/15 text-amber-400' },
     ]
 
     return (
@@ -227,11 +229,9 @@ export default function AnalyticsDashboardPage() {
             {/* ── Header ── */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-text)]">Analytics</h1>
+                    <h1 className="text-2xl font-bold text-[var(--color-text)]">{t('analytics.title')}</h1>
                     <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                        {hasData
-                            ? 'Last 30 days · From your connected ad accounts'
-                            : 'Connect ad accounts to see real performance data'}
+                        {hasData ? t('analytics.subtitleData') : t('analytics.subtitleEmpty')}
                     </p>
                 </div>
                 {hasData && (
@@ -240,14 +240,14 @@ export default function AnalyticsDashboardPage() {
                         className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-violet-500/40 transition-all duration-150"
                     >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        Export CSV
+                        {t('analytics.exportCsv')}
                     </Link>
                 )}
             </div>
 
             {error && (
                 <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-300">
-                    Failed to load analytics: {error}
+                    {t('analytics.loadFailed', { error })}
                 </div>
             )}
 
@@ -270,16 +270,16 @@ export default function AnalyticsDashboardPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
                         </svg>
                     </div>
-                    <h2 className="text-lg font-semibold text-[var(--color-text)] mb-2">No ad performance data yet</h2>
+                    <h2 className="text-lg font-semibold text-[var(--color-text)] mb-2">{t('analytics.empty.title')}</h2>
                     <p className="text-sm text-[var(--color-text-muted)] max-w-md mx-auto mb-6">
-                        Once you publish ads through Meta, TikTok, Google, or YouTube and the worker pulls daily insights, this dashboard will populate with real impressions, reach, CTR, spend, and trends.
+                        {t('analytics.empty.body')}
                     </p>
                     <div className="flex items-center justify-center gap-3">
                         <Link href="/dashboard/settings/accounts" className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition">
-                            Connect ad accounts
+                            {t('analytics.empty.connect')}
                         </Link>
                         <Link href="/dashboard/audits" className="px-4 py-2 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-raised)] text-sm font-medium text-[var(--color-text)] transition">
-                            Run a brand audit instead
+                            {t('analytics.empty.audit')}
                         </Link>
                     </div>
                 </div>
@@ -311,7 +311,7 @@ export default function AnalyticsDashboardPage() {
                             {trendData.length > 0 && (
                                 <div className="xl:col-span-2 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5">
                                     <div className="flex items-center justify-between mb-5">
-                                        <h2 className="text-sm font-semibold text-[var(--color-text)]">Performance Trend</h2>
+                                        <h2 className="text-sm font-semibold text-[var(--color-text)]">{t('analytics.performanceTrend')}</h2>
                                         <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                                             <span className="flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-full bg-violet-500 inline-block" />Impressions</span>
                                             <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-cyan-400 border-t-2 border-dashed border-cyan-400 inline-block" />Reach</span>
@@ -322,7 +322,7 @@ export default function AnalyticsDashboardPage() {
                             )}
                             {platformBreakdown.length > 0 && (
                                 <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5">
-                                    <h2 className="text-sm font-semibold text-[var(--color-text)] mb-5">Platform Breakdown</h2>
+                                    <h2 className="text-sm font-semibold text-[var(--color-text)] mb-5">{t('analytics.platformBreakdown')}</h2>
                                     <PieChart data={platformBreakdown} />
                                     <div className="mt-5 pt-4 border-t border-[var(--color-border)] grid grid-cols-3 gap-2">
                                         {platformBreakdown.slice(0, 3).map(d => (
@@ -341,8 +341,8 @@ export default function AnalyticsDashboardPage() {
                     {campaigns.length > 0 && (
                         <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
                             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-                                <h2 className="text-sm font-semibold text-[var(--color-text)]">Campaign Performance</h2>
-                                <p className="text-xs text-[var(--color-text-muted)]">Click any column to sort</p>
+                                <h2 className="text-sm font-semibold text-[var(--color-text)]">{t('analytics.campaignPerformance')}</h2>
+                                <p className="text-xs text-[var(--color-text-muted)]">{t('analytics.clickToSort')}</p>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-[800px]">
@@ -400,8 +400,8 @@ export default function AnalyticsDashboardPage() {
                         <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
                             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
                                 <div>
-                                    <h2 className="text-sm font-semibold text-[var(--color-text)]">Top Performing Ads</h2>
-                                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Ranked by engagement rate</p>
+                                    <h2 className="text-sm font-semibold text-[var(--color-text)]">{t('analytics.topAds')}</h2>
+                                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{t('analytics.topAdsHint')}</p>
                                 </div>
                             </div>
                             <div className="divide-y divide-[var(--color-border)]">

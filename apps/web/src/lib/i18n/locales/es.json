@@ -1,0 +1,219 @@
+{
+    "common": {
+        "loading": "Cargando…",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "saveChanges": "Guardar cambios",
+        "cancel": "Cancelar",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "remove": "Quitar",
+        "retry": "Reintentar",
+        "refresh": "Actualizar",
+        "search": "Buscar",
+        "viewAll": "Ver todo",
+        "back": "Volver",
+        "continue": "Continuar",
+        "submit": "Enviar",
+        "connect": "Conectar",
+        "reconnect": "Reconectar",
+        "disconnect": "Desconectar",
+        "yes": "Sí",
+        "no": "No",
+        "active": "Activa",
+        "draft": "Borrador",
+        "paused": "Pausada",
+        "completed": "Completada",
+        "running": "Ejecutando",
+        "queued": "En cola",
+        "failed": "Falló",
+        "all": "Todas",
+        "none": "Ninguno",
+        "language": "Idioma",
+        "english": "Inglés",
+        "spanish": "Español",
+        "comingSoon": "Próximamente",
+        "powered": "Powered by Claude",
+        "ownerAccount": "Cuenta OWNER",
+        "adminAccount": "Cuenta ADMIN",
+        "userAccount": "Cuenta USER"
+    },
+    "nav": {
+        "dashboard": "Inicio",
+        "claudeDesign": "Claude Design",
+        "brandAudits": "Auditorías",
+        "campaigns": "Campañas",
+        "mediaLibrary": "Biblioteca",
+        "analytics": "Analítica",
+        "aiInsights": "AI Insights",
+        "settings": "Configuración",
+        "new": "Nuevo"
+    },
+    "topbar": {
+        "notifications": "Notificaciones",
+        "markAllRead": "Marcar todas leídas",
+        "viewAllNotifications": "Ver todas las notificaciones",
+        "profile": "Perfil",
+        "billing": "Facturación",
+        "signOut": "Cerrar sesión"
+    },
+    "dashboard": {
+        "greetingMorning": "Buenos días",
+        "greetingAfternoon": "Buenas tardes",
+        "greetingEvening": "Buenas noches",
+        "subtitle": "Esto es lo que está pasando con tus campañas hoy.",
+        "newCampaign": "Nueva campaña",
+        "stats": {
+            "brands": "Marcas",
+            "brandsHint": "marcas en portfolio",
+            "brandsHintSingular": "marca en portfolio",
+            "adsPublished": "Anuncios publicados",
+            "adsPublishedHint": "este mes",
+            "adsPublishedAllTime": "{count} en total",
+            "totalReach": "Alcance total",
+            "totalReachHint": "conecta cuentas publicitarias",
+            "auditIssues": "Problemas de auditoría",
+            "auditIssuesHint": "checks fallidos en tus marcas"
+        },
+        "recentActivity": "Actividad reciente",
+        "noAudits": "Aún no has corrido auditorías — ve a Auditorías para correr la primera",
+        "getStarted": "Empezar",
+        "quickActions": "Acciones rápidas",
+        "uploadMedia": "Subir media",
+        "reviewAudits": "Revisar auditorías",
+        "gettingStarted": "Configuración inicial",
+        "checklist": {
+            "connectAccounts": "Conecta tus redes sociales",
+            "uploadAssets": "Sube assets de marca (logo, colores)",
+            "createCampaign": "Crea tu primera campaña",
+            "uploadLibrary": "Sube media a tu biblioteca",
+            "runAudit": "Corre tu primera auditoría",
+            "start": "Empezar →"
+        }
+    },
+    "audits": {
+        "title": "Auditorías de marca",
+        "subtitle": "Corre auditorías con IA en todas tus plataformas.",
+        "loadingBrands": "Cargando auditorías…",
+        "platforms": {
+            "instagram": "Instagram",
+            "metaAds": "Meta Ads",
+            "googleAds": "Google Ads",
+            "tiktok": "TikTok",
+            "youtube": "YouTube",
+            "landing": "Landing"
+        },
+        "runAudit": "Correr auditoría",
+        "running": "Corriendo…",
+        "lastRun": "Última corrida",
+        "viewReport": "Ver reporte",
+        "noBrands": "Aún no hay marcas — agrega una primero",
+        "score": "Puntaje",
+        "grade": "Nota",
+        "detail": {
+            "allAudits": "← Todas las auditorías",
+            "tabs": {
+                "overview": "Resumen",
+                "checks": "Checks",
+                "report": "Reporte"
+            },
+            "passed": "Aprobados",
+            "warnings": "Advertencias",
+            "failedLabel": "Fallidos",
+            "na": "N/A",
+            "categoryScores": "Puntaje por categoría",
+            "topIssues": "Problemas prioritarios",
+            "auditFailed": "Falló:",
+            "auditInProgress": "La auditoría está {status}…"
+        }
+    },
+    "campaigns": {
+        "title": "Campañas",
+        "subtitle": "{active} activa · {total} en total",
+        "newCampaign": "Nueva campaña",
+        "search": "Buscar campañas…",
+        "filters": {
+            "all": "Todas",
+            "active": "Activas",
+            "draft": "Borrador",
+            "paused": "Pausadas",
+            "completed": "Completadas"
+        },
+        "empty": {
+            "title": "No se encontraron campañas",
+            "search": "Sin resultados para \"{query}\"",
+            "noStatus": "Aún no hay campañas en {status}",
+            "create": "Crear campaña"
+        },
+        "loadFailed": "No se pudieron cargar las campañas: {error}",
+        "card": {
+            "ads": "anuncios",
+            "impressions": "Impresiones",
+            "clicks": "Clics",
+            "budget": "Presupuesto",
+            "spent": "Gastado"
+        }
+    },
+    "analytics": {
+        "title": "Analítica",
+        "subtitleData": "Últimos 30 días · Desde tus cuentas publicitarias conectadas",
+        "subtitleEmpty": "Conecta cuentas publicitarias para ver datos reales",
+        "loadFailed": "No se pudo cargar la analítica: {error}",
+        "exportCsv": "Exportar CSV",
+        "totals": {
+            "impressions": "Impresiones totales",
+            "reach": "Alcance total",
+            "clicks": "Clics totales",
+            "engagement": "Engagement promedio"
+        },
+        "performanceTrend": "Tendencia de desempeño",
+        "platformBreakdown": "Desglose por plataforma",
+        "campaignPerformance": "Desempeño de campañas",
+        "clickToSort": "Haz click en una columna para ordenar",
+        "topAds": "Mejores anuncios",
+        "topAdsHint": "Ordenados por tasa de engagement",
+        "empty": {
+            "title": "Aún no hay datos de desempeño",
+            "body": "Cuando publiques anuncios en Meta, TikTok, Google o YouTube y el worker traiga la data diaria, este dashboard mostrará impresiones, alcance, CTR, gasto y tendencias reales.",
+            "connect": "Conectar cuentas publicitarias",
+            "audit": "Mejor corre una auditoría"
+        }
+    },
+    "settings": {
+        "title": "Configuración",
+        "subtitle": "Administra tu organización, facturación y preferencias",
+        "tabs": {
+            "profile": "Perfil",
+            "brand": "Marca",
+            "accounts": "Cuentas",
+            "team": "Equipo",
+            "billing": "Facturación",
+            "notifications": "Notificaciones"
+        },
+        "profile": {
+            "agencyTitle": "Perfil de la agencia",
+            "agencyHint": "La cuenta de tu agencia. Cada marca/venue tiene su propio perfil — mira abajo.",
+            "logo": "Logo",
+            "uploadLogo": "Subir logo",
+            "agencyName": "Nombre de la agencia",
+            "agencyNamePlaceholder": "Nombre de tu agencia",
+            "industry": "Industria",
+            "industryPlaceholder": "— Selecciona industria —",
+            "brandsTitle": "Perfiles de marca",
+            "brandsHint": "Cada venue tiene su logo, voz, audiencia e identidad visual propia. Edita una marca para actualizar su memoria — la usan las auditorías, Claude Design y la generación de anuncios.",
+            "brandCount": "{count} marca",
+            "brandCountPlural": "{count} marcas",
+            "noBrands": "Aún no hay marcas.",
+            "addFirst": "Agrega tu primera marca →",
+            "edit": "Editar →",
+            "noHandle": "Sin handle de IG",
+            "saveError": "No se pudo guardar"
+        }
+    },
+    "language": {
+        "label": "Idioma",
+        "en": "English",
+        "es": "Español"
+    }
+}

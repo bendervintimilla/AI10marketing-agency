@@ -1,0 +1,219 @@
+{
+    "common": {
+        "loading": "Loading…",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "saveChanges": "Save Changes",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "delete": "Delete",
+        "remove": "Remove",
+        "retry": "Retry",
+        "refresh": "Refresh",
+        "search": "Search",
+        "viewAll": "View all",
+        "back": "Back",
+        "continue": "Continue",
+        "submit": "Submit",
+        "connect": "Connect",
+        "reconnect": "Reconnect",
+        "disconnect": "Disconnect",
+        "yes": "Yes",
+        "no": "No",
+        "active": "Active",
+        "draft": "Draft",
+        "paused": "Paused",
+        "completed": "Completed",
+        "running": "Running",
+        "queued": "Queued",
+        "failed": "Failed",
+        "all": "All",
+        "none": "None",
+        "language": "Language",
+        "english": "English",
+        "spanish": "Spanish",
+        "comingSoon": "Coming soon",
+        "powered": "Powered by Claude",
+        "ownerAccount": "OWNER account",
+        "adminAccount": "ADMIN account",
+        "userAccount": "USER account"
+    },
+    "nav": {
+        "dashboard": "Dashboard",
+        "claudeDesign": "Claude Design",
+        "brandAudits": "Brand Audits",
+        "campaigns": "Campaigns",
+        "mediaLibrary": "Media Library",
+        "analytics": "Analytics",
+        "aiInsights": "AI Insights",
+        "settings": "Settings",
+        "new": "New"
+    },
+    "topbar": {
+        "notifications": "Notifications",
+        "markAllRead": "Mark all read",
+        "viewAllNotifications": "View all notifications",
+        "profile": "Profile",
+        "billing": "Billing",
+        "signOut": "Sign out"
+    },
+    "dashboard": {
+        "greetingMorning": "Good morning",
+        "greetingAfternoon": "Good afternoon",
+        "greetingEvening": "Good evening",
+        "subtitle": "Here's what's happening with your campaigns today.",
+        "newCampaign": "New Campaign",
+        "stats": {
+            "brands": "Brands",
+            "brandsHint": "brands in portfolio",
+            "brandsHintSingular": "brand in portfolio",
+            "adsPublished": "Ads Published",
+            "adsPublishedHint": "this month",
+            "adsPublishedAllTime": "{count} all-time",
+            "totalReach": "Total Reach",
+            "totalReachHint": "connect ad accounts",
+            "auditIssues": "Audit Issues",
+            "auditIssuesHint": "failing checks across brands"
+        },
+        "recentActivity": "Recent Activity",
+        "noAudits": "No audits run yet — head to Brand Audits to run your first one",
+        "getStarted": "Get Started",
+        "quickActions": "Quick Actions",
+        "uploadMedia": "Upload Media",
+        "reviewAudits": "Review Audit Issues",
+        "gettingStarted": "Getting Started",
+        "checklist": {
+            "connectAccounts": "Connect your social accounts",
+            "uploadAssets": "Upload brand assets (logo, colors)",
+            "createCampaign": "Create your first campaign",
+            "uploadLibrary": "Upload media to your library",
+            "runAudit": "Run your first brand audit",
+            "start": "Start →"
+        }
+    },
+    "audits": {
+        "title": "Brand Audits",
+        "subtitle": "Run AI-powered audits across all your platforms.",
+        "loadingBrands": "Loading brand audits…",
+        "platforms": {
+            "instagram": "Instagram",
+            "metaAds": "Meta Ads",
+            "googleAds": "Google Ads",
+            "tiktok": "TikTok",
+            "youtube": "YouTube",
+            "landing": "Landing"
+        },
+        "runAudit": "Run audit",
+        "running": "Running…",
+        "lastRun": "Last run",
+        "viewReport": "View report",
+        "noBrands": "No brands yet — add a brand first",
+        "score": "Score",
+        "grade": "Grade",
+        "detail": {
+            "allAudits": "← All audits",
+            "tabs": {
+                "overview": "Overview",
+                "checks": "Checks",
+                "report": "Report"
+            },
+            "passed": "Passed",
+            "warnings": "Warnings",
+            "failedLabel": "Failed",
+            "na": "N/A",
+            "categoryScores": "Category Scores",
+            "topIssues": "Top Issues to Fix",
+            "auditFailed": "Failed:",
+            "auditInProgress": "Audit is {status}…"
+        }
+    },
+    "campaigns": {
+        "title": "Campaigns",
+        "subtitle": "{active} active · {total} total",
+        "newCampaign": "New Campaign",
+        "search": "Search campaigns…",
+        "filters": {
+            "all": "All",
+            "active": "Active",
+            "draft": "Draft",
+            "paused": "Paused",
+            "completed": "Completed"
+        },
+        "empty": {
+            "title": "No campaigns found",
+            "search": "No results for \"{query}\"",
+            "noStatus": "No {status} campaigns yet",
+            "create": "Create Campaign"
+        },
+        "loadFailed": "Failed to load campaigns: {error}",
+        "card": {
+            "ads": "ads",
+            "impressions": "Impressions",
+            "clicks": "Clicks",
+            "budget": "Budget",
+            "spent": "Spent"
+        }
+    },
+    "analytics": {
+        "title": "Analytics",
+        "subtitleData": "Last 30 days · From your connected ad accounts",
+        "subtitleEmpty": "Connect ad accounts to see real performance data",
+        "loadFailed": "Failed to load analytics: {error}",
+        "exportCsv": "Export CSV",
+        "totals": {
+            "impressions": "Total Impressions",
+            "reach": "Total Reach",
+            "clicks": "Total Clicks",
+            "engagement": "Avg. Engagement"
+        },
+        "performanceTrend": "Performance Trend",
+        "platformBreakdown": "Platform Breakdown",
+        "campaignPerformance": "Campaign Performance",
+        "clickToSort": "Click any column to sort",
+        "topAds": "Top Performing Ads",
+        "topAdsHint": "Ranked by engagement rate",
+        "empty": {
+            "title": "No ad performance data yet",
+            "body": "Once you publish ads through Meta, TikTok, Google, or YouTube and the worker pulls daily insights, this dashboard will populate with real impressions, reach, CTR, spend, and trends.",
+            "connect": "Connect ad accounts",
+            "audit": "Run a brand audit instead"
+        }
+    },
+    "settings": {
+        "title": "Settings",
+        "subtitle": "Manage your organization, billing, and preferences",
+        "tabs": {
+            "profile": "Profile",
+            "brand": "Brand",
+            "accounts": "Accounts",
+            "team": "Team",
+            "billing": "Billing",
+            "notifications": "Notifications"
+        },
+        "profile": {
+            "agencyTitle": "Agency Profile",
+            "agencyHint": "Your agency's account. Each brand/venue has its own profile — see below.",
+            "logo": "Logo",
+            "uploadLogo": "Upload Logo",
+            "agencyName": "Agency name",
+            "agencyNamePlaceholder": "Your agency name",
+            "industry": "Industry",
+            "industryPlaceholder": "— Select industry —",
+            "brandsTitle": "Brand profiles",
+            "brandsHint": "Each venue has its own logo, voice, audience, and visual identity. Edit a brand to update its memory — used by audits, Claude Design, and ad generation.",
+            "brandCount": "{count} brand",
+            "brandCountPlural": "{count} brands",
+            "noBrands": "No brands yet.",
+            "addFirst": "Add your first brand →",
+            "edit": "Edit →",
+            "noHandle": "No IG handle",
+            "saveError": "Failed to save"
+        }
+    },
+    "language": {
+        "label": "Language",
+        "en": "English",
+        "es": "Español"
+    }
+}

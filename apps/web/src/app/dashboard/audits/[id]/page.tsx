@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { apiGet } from '@/lib/api'
+import { useTranslation } from '@/lib/i18n'
 
 interface AuditCheck {
     id: string
@@ -31,6 +32,7 @@ interface AuditRun {
 export default function AuditDetailPage() {
     const params = useParams()
     const id = params?.id as string
+    const { t } = useTranslation()
 
     const [run, setRun] = useState<AuditRun | null>(null)
     const [checks, setChecks] = useState<AuditCheck[]>([])
@@ -61,7 +63,7 @@ export default function AuditDetailPage() {
         }
     }, [id])
 
-    if (!run) return <div className="p-8 text-[var(--color-text-muted)]">Loading…</div>
+    if (!run) return <div className="p-8 text-[var(--color-text-muted)]">{t('common.loading')}</div>
 
     const failed = checks.filter((c) => c.status === 'FAIL')
     const warned = checks.filter((c) => c.status === 'WARNING')
@@ -72,7 +74,7 @@ export default function AuditDetailPage() {
         <div className="p-2 md:p-4 space-y-6 text-[var(--color-text)]">
             <Link href="/dashboard/audits"
                 className="text-sm text-violet-400 hover:text-violet-300 hover:underline">
-                ← All audits
+                {t('audits.detail.allAudits')}
             </Link>
 
             <div className="flex items-start justify-between gap-6">
@@ -91,13 +93,13 @@ export default function AuditDetailPage() {
 
             {run.status === 'FAILED' && (
                 <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-                    <strong className="text-red-200">Failed:</strong> {run.errorMessage}
+                    <strong className="text-red-200">{t('audits.detail.auditFailed')}</strong> {run.errorMessage}
                 </div>
             )}
 
             {(run.status === 'QUEUED' || run.status === 'RUNNING') && (
                 <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-4 text-sm text-violet-200">
-                    <span className="animate-pulse">⏳</span> Audit is {run.status.toLowerCase()}…
+                    <span className="animate-pulse">⏳</span> {t('audits.detail.auditInProgress', { status: run.status === 'QUEUED' ? t('common.queued') : t('common.running') })}
                 </div>
             )}
 
@@ -105,16 +107,16 @@ export default function AuditDetailPage() {
                 <>
                     <div className="border-b border-[var(--color-border)]">
                         <nav className="flex gap-6">
-                            {(['overview', 'checks', 'report'] as const).map((t) => (
-                                <button key={t}
-                                    onClick={() => setTab(t)}
+                            {(['overview', 'checks', 'report'] as const).map((tabKey) => (
+                                <button key={tabKey}
+                                    onClick={() => setTab(tabKey)}
                                     className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                                        tab === t
+                                        tab === tabKey
                                             ? 'border-violet-500 text-violet-400'
                                             : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                                     }`}>
-                                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                                    {t === 'checks' && (
+                                    {t(`audits.detail.tabs.${tabKey}`)}
+                                    {tabKey === 'checks' && (
                                         <span className="ml-2 text-xs bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] px-2 py-0.5 rounded">
                                             {checks.length}
                                         </span>
@@ -127,15 +129,15 @@ export default function AuditDetailPage() {
                     {tab === 'overview' && (
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                <Stat label="Passed" value={passed.length} color="green" />
-                                <Stat label="Warnings" value={warned.length} color="yellow" />
-                                <Stat label="Failed" value={failed.length} color="red" />
-                                <Stat label="N/A" value={na.length} color="gray" />
+                                <Stat label={t('audits.detail.passed')} value={passed.length} color="green" />
+                                <Stat label={t('audits.detail.warnings')} value={warned.length} color="yellow" />
+                                <Stat label={t('audits.detail.failedLabel')} value={failed.length} color="red" />
+                                <Stat label={t('audits.detail.na')} value={na.length} color="gray" />
                             </div>
 
                             {run.summary?.by_category && (
                                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-                                    <h3 className="font-semibold mb-4 text-[var(--color-text)]">Category Scores</h3>
+                                    <h3 className="font-semibold mb-4 text-[var(--color-text)]">{t('audits.detail.categoryScores')}</h3>
                                     <div className="space-y-3">
                                         {Object.entries(run.summary.by_category).map(([cat, b]: any) => (
                                             <div key={cat}>
@@ -155,7 +157,7 @@ export default function AuditDetailPage() {
 
                             {failed.length > 0 && (
                                 <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-6">
-                                    <h3 className="font-semibold mb-3 text-red-300">Top Issues to Fix</h3>
+                                    <h3 className="font-semibold mb-3 text-red-300">{t('audits.detail.topIssues')}</h3>
                                     <ul className="space-y-3">
                                         {failed.slice(0, 5).map((c) => (
                                             <li key={c.id} className="text-sm">
@@ -192,6 +194,7 @@ export default function AuditDetailPage() {
 }
 
 function ScoreGauge({ score, grade }: { score: number; grade: string }) {
+    const { t } = useTranslation()
     const color =
         score >= 75 ? '#4ade80' :
         score >= 60 ? '#facc15' :
@@ -199,7 +202,7 @@ function ScoreGauge({ score, grade }: { score: number; grade: string }) {
     return (
         <div className="text-center shrink-0">
             <div className="text-5xl font-bold" style={{ color }}>{Math.round(score)}</div>
-            <div className="text-xs text-[var(--color-text-muted)] mt-1">Grade {grade}</div>
+            <div className="text-xs text-[var(--color-text-muted)] mt-1">{t('audits.grade')} {grade}</div>
         </div>
     )
 }

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { apiGet, apiPost } from '@/lib/api'
+import { useTranslation } from '@/lib/i18n'
 
 interface Brand {
     id: string
@@ -23,13 +24,13 @@ interface AuditRun {
     completedAt: string | null
 }
 
-const platforms = [
-    { key: 'INSTAGRAM', label: 'Instagram', icon: '📸' },
-    { key: 'META', label: 'Meta Ads', icon: '📘' },
-    { key: 'GOOGLE', label: 'Google Ads', icon: '🔎' },
-    { key: 'TIKTOK', label: 'TikTok', icon: '🎵' },
-    { key: 'YOUTUBE', label: 'YouTube', icon: '▶️' },
-    { key: 'LANDING', label: 'Landing', icon: '🌐' },
+const PLATFORM_KEYS = [
+    { key: 'INSTAGRAM', tKey: 'audits.platforms.instagram', icon: '📸' },
+    { key: 'META', tKey: 'audits.platforms.metaAds', icon: '📘' },
+    { key: 'GOOGLE', tKey: 'audits.platforms.googleAds', icon: '🔎' },
+    { key: 'TIKTOK', tKey: 'audits.platforms.tiktok', icon: '🎵' },
+    { key: 'YOUTUBE', tKey: 'audits.platforms.youtube', icon: '▶️' },
+    { key: 'LANDING', tKey: 'audits.platforms.landing', icon: '🌐' },
 ] as const
 
 export default function AuditsPage() {
@@ -79,10 +80,12 @@ export default function AuditsPage() {
         return list.find((r) => r.platform === platform) ?? null
     }
 
+    const { t } = useTranslation()
+
     if (loading) {
         return (
             <div className="p-8 text-[var(--color-text-muted)]">
-                <div className="animate-pulse">Loading brand audits…</div>
+                <div className="animate-pulse">{t('audits.loadingBrands')}</div>
             </div>
         )
     }
@@ -90,28 +93,21 @@ export default function AuditsPage() {
     return (
         <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-[var(--color-text)]">Brand Audits</h1>
+                <h1 className="text-3xl font-bold text-[var(--color-text)]">{t('audits.title')}</h1>
                 <p className="text-[var(--color-text-muted)] mt-1">
-                    Run structural audits on your Instagram accounts and landing pages.
+                    {t('audits.subtitle')}
                 </p>
                 <p className="text-xs text-[var(--color-text-subtle)] mt-2">
-                    {brands.length} {brands.length === 1 ? 'brand' : 'brands'} in your organization
+                    {brands.length === 1
+                        ? t('settings.profile.brandCount', { count: brands.length })
+                        : t('settings.profile.brandCountPlural', { count: brands.length })}
                 </p>
             </div>
 
             {brands.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-12 text-center">
                     <div className="text-5xl mb-3">🏢</div>
-                    <div className="text-[var(--color-text)] font-medium mb-1">No brands yet</div>
-                    <div className="text-[var(--color-text-muted)] text-sm mb-4">
-                        Add your first brand to start running audits.
-                    </div>
-                    <Link
-                        href="/dashboard/settings"
-                        className="inline-block rounded-md bg-violet-600 px-4 py-2 text-sm text-white hover:bg-violet-500"
-                    >
-                        Add a brand →
-                    </Link>
+                    <div className="text-[var(--color-text)] font-medium mb-1">{t('audits.noBrands')}</div>
                 </div>
             ) : (
                 <div className="grid gap-4">
@@ -145,7 +141,7 @@ export default function AuditsPage() {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {platforms.map((p) => {
+                                {PLATFORM_KEYS.map((p) => {
                                     const run = getLatestRun(brand.id, p.key)
                                     const key = `${brand.id}-${p.key}`
                                     const isRunning =
@@ -160,7 +156,7 @@ export default function AuditsPage() {
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="font-medium text-[var(--color-text)]">
                                                     <span className="mr-1.5">{p.icon}</span>
-                                                    {p.label}
+                                                    {t(p.tKey)}
                                                 </div>
                                                 {run?.score !== null && run?.score !== undefined && (
                                                     <ScoreBadge score={run.score} grade={run.grade} />
@@ -168,7 +164,7 @@ export default function AuditsPage() {
                                             </div>
                                             <div className="flex items-center justify-between gap-2">
                                                 <div className="text-xs text-[var(--color-text-muted)]">
-                                                    {run ? <RunStatus run={run} /> : 'Never run'}
+                                                    {run ? <RunStatus run={run} /> : t('audits.lastRun') + ': —'}
                                                 </div>
                                                 <div className="flex gap-2">
                                                     {run?.status === 'COMPLETED' && (
@@ -176,7 +172,7 @@ export default function AuditsPage() {
                                                             href={`/dashboard/audits/${run.id}`}
                                                             className="text-xs text-violet-400 hover:text-violet-300 hover:underline"
                                                         >
-                                                            View →
+                                                            {t('audits.viewReport')} →
                                                         </Link>
                                                     )}
                                                     <button
@@ -184,7 +180,7 @@ export default function AuditsPage() {
                                                         onClick={() => runAudit(brand.id, p.key)}
                                                         className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                                     >
-                                                        {isRunning ? 'Running…' : 'Run audit'}
+                                                        {isRunning ? t('audits.running') : t('audits.runAudit')}
                                                     </button>
                                                 </div>
                                             </div>

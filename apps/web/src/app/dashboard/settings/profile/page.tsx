@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet, apiPatch } from '@/lib/api';
+import { useTranslation } from '@/lib/i18n';
 
 const INDUSTRIES = [
     'Hospitality & Restaurants', 'Retail & E-commerce', 'Health & Wellness', 'Food & Beverage',
@@ -25,6 +26,7 @@ interface BrandRow {
 
 export default function ProfilePage() {
     const { user } = useAuth();
+    const { t } = useTranslation();
     const [form, setForm] = useState({ name: '', industry: '' });
     const [brands, setBrands] = useState<BrandRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function ProfilePage() {
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to save');
+            setError(err instanceof Error ? err.message : t('settings.profile.saveError'));
         } finally {
             setSaving(false);
         }
@@ -71,9 +73,9 @@ export default function ProfilePage() {
         <div className="space-y-10">
             {/* ── Org-level profile (the agency itself) ── */}
             <section>
-                <h2 className="text-xl font-semibold text-[var(--color-text)] mb-1">Agency Profile</h2>
+                <h2 className="text-xl font-semibold text-[var(--color-text)] mb-1">{t('settings.profile.agencyTitle')}</h2>
                 <p className="text-[var(--color-text-muted)] text-sm mb-6">
-                    Your agency's account. Each brand/venue has its own profile — see below.
+                    {t('settings.profile.agencyHint')}
                 </p>
 
                 {loading ? (
@@ -81,7 +83,7 @@ export default function ProfilePage() {
                 ) : (
                     <form onSubmit={handleSave} className="space-y-6 max-w-lg">
                         <div>
-                            <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-2">Logo</label>
+                            <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-2">{t('settings.profile.logo')}</label>
                             <div className="flex items-center gap-4">
                                 <div className="w-16 h-16 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-2xl">
                                     🏢
@@ -90,32 +92,32 @@ export default function ProfilePage() {
                                     type="button"
                                     className="px-4 py-2 text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text)] transition-colors"
                                     disabled
-                                    title="Upload not implemented yet"
+                                    title={t('common.comingSoon')}
                                 >
-                                    Upload Logo
+                                    {t('settings.profile.uploadLogo')}
                                 </button>
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-2">Agency name</label>
+                            <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-2">{t('settings.profile.agencyName')}</label>
                             <input
                                 type="text"
                                 value={form.name}
                                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                                 className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/50 transition-all"
-                                placeholder="Your agency name"
+                                placeholder={t('settings.profile.agencyNamePlaceholder')}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-2">Industry</label>
+                            <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-2">{t('settings.profile.industry')}</label>
                             <select
                                 value={form.industry}
                                 onChange={(e) => setForm({ ...form, industry: e.target.value })}
                                 className="w-full px-4 py-3 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all"
                             >
-                                <option value="">— Select industry —</option>
+                                <option value="">{t('settings.profile.industryPlaceholder')}</option>
                                 {INDUSTRIES.map((ind) => (
                                     <option key={ind} value={ind}>{ind}</option>
                                 ))}
@@ -128,10 +130,10 @@ export default function ProfilePage() {
                                 disabled={saving}
                                 className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 rounded-xl text-sm font-medium text-white transition-all shadow-lg shadow-violet-500/20"
                             >
-                                {saving ? 'Saving…' : 'Save Changes'}
+                                {saving ? t('common.saving') : t('common.saveChanges')}
                             </button>
                             {saved && (
-                                <span className="text-sm text-emerald-400 flex items-center gap-1">✓ Saved</span>
+                                <span className="text-sm text-emerald-400 flex items-center gap-1">✓ {t('common.saved')}</span>
                             )}
                             {error && (
                                 <span className="text-sm text-red-400">{error}</span>
@@ -144,14 +146,15 @@ export default function ProfilePage() {
             {/* ── Brand/Venue profiles ── */}
             <section>
                 <div className="flex items-center justify-between mb-1">
-                    <h2 className="text-xl font-semibold text-[var(--color-text)]">Brand profiles</h2>
+                    <h2 className="text-xl font-semibold text-[var(--color-text)]">{t('settings.profile.brandsTitle')}</h2>
                     <span className="text-xs text-[var(--color-text-subtle)]">
-                        {brands.length} {brands.length === 1 ? 'brand' : 'brands'}
+                        {brands.length === 1
+                            ? t('settings.profile.brandCount', { count: brands.length })
+                            : t('settings.profile.brandCountPlural', { count: brands.length })}
                     </span>
                 </div>
                 <p className="text-[var(--color-text-muted)] text-sm mb-5">
-                    Each venue has its own logo, voice, audience, and visual identity. Edit a brand
-                    to update its memory — used by audits, Claude Design, and ad generation.
+                    {t('settings.profile.brandsHint')}
                 </p>
 
                 {loading ? (
@@ -162,12 +165,12 @@ export default function ProfilePage() {
                     </div>
                 ) : brands.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center">
-                        <p className="text-sm text-[var(--color-text-muted)] mb-3">No brands yet.</p>
+                        <p className="text-sm text-[var(--color-text-muted)] mb-3">{t('settings.profile.noBrands')}</p>
                         <Link
                             href="/dashboard/claude-design"
                             className="inline-flex items-center px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition"
                         >
-                            Add your first brand →
+                            {t('settings.profile.addFirst')}
                         </Link>
                     </div>
                 ) : (
@@ -184,12 +187,12 @@ export default function ProfilePage() {
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-semibold text-[var(--color-text)] truncate">{b.name}</p>
                                     <p className="text-xs text-[var(--color-text-muted)] truncate">
-                                        {b.instagramHandle ? `@${b.instagramHandle}` : 'No IG handle'}
+                                        {b.instagramHandle ? `@${b.instagramHandle}` : t('settings.profile.noHandle')}
                                         {b.websiteUrl ? ` · ${new URL(b.websiteUrl).hostname}` : ''}
                                     </p>
                                 </div>
                                 <span className="text-xs text-[var(--color-text-subtle)] group-hover:text-violet-400 shrink-0 transition-colors">
-                                    Edit →
+                                    {t('settings.profile.edit')}
                                 </span>
                             </Link>
                         ))}

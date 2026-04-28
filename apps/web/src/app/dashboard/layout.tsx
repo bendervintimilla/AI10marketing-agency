@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTranslation } from '@/lib/i18n'
 
 /* ─── Nav Items ─── */
 interface NavItem {
@@ -94,15 +95,16 @@ function IconClaude() {
     )
 }
 
-const NAV_ITEMS: NavItem[] = [
-    { label: 'Dashboard', href: '/dashboard', icon: <IconDashboard /> },
-    { label: 'Claude Design', href: '/dashboard/claude-design', icon: <IconClaude />, badge: 'New' },
-    { label: 'Brand Audits', href: '/dashboard/audits', icon: <IconAnalytics /> },
-    { label: 'Campaigns', href: '/dashboard/campaigns', icon: <IconCampaigns /> },
-    { label: 'Media Library', href: '/dashboard/media', icon: <IconMedia /> },
-    { label: 'Analytics', href: '/dashboard/analytics', icon: <IconAnalytics /> },
-    { label: 'AI Insights', href: '/dashboard/ai-insights', icon: <IconAI /> },
-    { label: 'Settings', href: '/dashboard/settings', icon: <IconSettings /> },
+// Nav labels are i18n keys resolved inside the Sidebar component.
+const NAV_ITEMS: Array<NavItem & { tKey: string; badgeKey?: string }> = [
+    { label: 'Dashboard', tKey: 'nav.dashboard', href: '/dashboard', icon: <IconDashboard /> },
+    { label: 'Claude Design', tKey: 'nav.claudeDesign', href: '/dashboard/claude-design', icon: <IconClaude />, badge: 'New', badgeKey: 'nav.new' },
+    { label: 'Brand Audits', tKey: 'nav.brandAudits', href: '/dashboard/audits', icon: <IconAnalytics /> },
+    { label: 'Campaigns', tKey: 'nav.campaigns', href: '/dashboard/campaigns', icon: <IconCampaigns /> },
+    { label: 'Media Library', tKey: 'nav.mediaLibrary', href: '/dashboard/media', icon: <IconMedia /> },
+    { label: 'Analytics', tKey: 'nav.analytics', href: '/dashboard/analytics', icon: <IconAnalytics /> },
+    { label: 'AI Insights', tKey: 'nav.aiInsights', href: '/dashboard/ai-insights', icon: <IconAI /> },
+    { label: 'Settings', tKey: 'nav.settings', href: '/dashboard/settings', icon: <IconSettings /> },
 ]
 
 /* ─── Sidebar ─── */
@@ -113,6 +115,10 @@ function Sidebar({ open, onClose, userInitials, userEmail, userName, orgInitials
     onLogout: () => void;
 }) {
     const pathname = usePathname()
+    const { t } = useTranslation()
+    const accountLabel = userRole === 'OWNER' ? t('common.ownerAccount')
+        : userRole === 'ADMIN' ? t('common.adminAccount')
+            : t('common.userAccount')
 
     const isActive = (href: string) => {
         if (href === '/dashboard') return pathname === '/dashboard'
@@ -146,7 +152,7 @@ function Sidebar({ open, onClose, userInitials, userEmail, userName, orgInitials
                     </div>
                     <div>
                         <p className="text-sm font-bold text-[var(--color-text)]">AI10 Marketing</p>
-                        <p className="text-[10px] text-[var(--color-text-subtle)] font-medium">Powered by Claude</p>
+                        <p className="text-[10px] text-[var(--color-text-subtle)] font-medium">{t('common.powered')}</p>
                     </div>
                 </div>
 
@@ -158,7 +164,7 @@ function Sidebar({ open, onClose, userInitials, userEmail, userName, orgInitials
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-[var(--color-text)] truncate">{orgName}</p>
-                            <p className="text-[10px] text-[var(--color-text-subtle)]">{userRole} account</p>
+                            <p className="text-[10px] text-[var(--color-text-subtle)]">{accountLabel}</p>
                         </div>
                         <svg className="h-4 w-4 text-[var(--color-text-subtle)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
@@ -183,10 +189,10 @@ function Sidebar({ open, onClose, userInitials, userEmail, userName, orgInitials
                             <span className={isActive(item.href) ? 'text-violet-400' : 'text-[var(--color-text-subtle)]'}>
                                 {item.icon}
                             </span>
-                            <span className="flex-1">{item.label}</span>
-                            {item.badge !== undefined && (
+                            <span className="flex-1">{t(item.tKey)}</span>
+                            {item.badgeKey && (
                                 <span className="h-5 min-w-[1.25rem] rounded-full bg-violet-600 text-white text-[10px] font-bold flex items-center justify-center px-1">
-                                    {item.badge}
+                                    {t(item.badgeKey)}
                                 </span>
                             )}
                         </Link>
@@ -216,13 +222,37 @@ function Sidebar({ open, onClose, userInitials, userEmail, userName, orgInitials
 /* ─── Breadcrumb ─── */
 function Breadcrumb() {
     const pathname = usePathname()
+    const { t } = useTranslation()
     const segments = pathname.split('/').filter(Boolean)
 
-    const crumbs = segments.map((seg, i) => ({
-        label: seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '),
-        href: '/' + segments.slice(0, i + 1).join('/'),
-        isLast: i === segments.length - 1,
-    }))
+    // Map well-known path segments to their nav translation key. Anything else
+    // (e.g. an audit run id) falls through to the title-cased segment.
+    const SEGMENT_TO_KEY: Record<string, string> = {
+        dashboard: 'nav.dashboard',
+        'claude-design': 'nav.claudeDesign',
+        audits: 'nav.brandAudits',
+        campaigns: 'nav.campaigns',
+        media: 'nav.mediaLibrary',
+        analytics: 'nav.analytics',
+        'ai-insights': 'nav.aiInsights',
+        settings: 'nav.settings',
+        profile: 'topbar.profile',
+        billing: 'topbar.billing',
+        accounts: 'settings.tabs.accounts',
+        team: 'settings.tabs.team',
+        brand: 'settings.tabs.brand',
+        notifications: 'topbar.notifications',
+    }
+
+    const crumbs = segments.map((seg, i) => {
+        const tKey = SEGMENT_TO_KEY[seg]
+        const label = tKey ? t(tKey) : seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ')
+        return {
+            label,
+            href: '/' + segments.slice(0, i + 1).join('/'),
+            isLast: i === segments.length - 1,
+        }
+    })
 
     return (
         <nav className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
@@ -248,12 +278,10 @@ function Topbar({ onMenuClick, userInitials, userName, userEmail, onLogout }: {
 }) {
     const [showNotifications, setShowNotifications] = useState(false)
     const [showUserMenu, setShowUserMenu] = useState(false)
+    const { t, locale, setLocale } = useTranslation()
 
-    const notifications = [
-        { id: 1, text: 'Campaign "Summer Sale" reached 10K reach', time: '2m ago', unread: true },
-        { id: 2, text: 'AI suggests pausing "Ad #42" – low ROAS', time: '15m ago', unread: true },
-        { id: 3, text: '"Brand Awareness" campaign approved', time: '1h ago', unread: false },
-    ]
+    // Notifications are placeholder content until the real system lands.
+    const notifications: Array<{ id: number; text: string; time: string; unread: boolean }> = []
 
     return (
         <header className="sticky top-0 z-40 flex items-center gap-3 px-4 lg:px-6 h-14 bg-[var(--color-surface)]/80 backdrop-blur-xl border-b border-[var(--color-border)]">
@@ -286,8 +314,8 @@ function Topbar({ onMenuClick, userInitials, userName, userEmail, onLogout }: {
                     {showNotifications && (
                         <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl z-50 overflow-hidden animate-slide-up">
                             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-                                <h3 className="text-sm font-semibold text-[var(--color-text)]">Notifications</h3>
-                                <button className="text-xs text-violet-400 hover:text-violet-300">Mark all read</button>
+                                <h3 className="text-sm font-semibold text-[var(--color-text)]">{t('topbar.notifications')}</h3>
+                                <button className="text-xs text-violet-400 hover:text-violet-300">{t('topbar.markAllRead')}</button>
                             </div>
                             <div className="divide-y divide-[var(--color-border)]">
                                 {notifications.map((n) => (
@@ -302,7 +330,7 @@ function Topbar({ onMenuClick, userInitials, userName, userEmail, onLogout }: {
                                 ))}
                             </div>
                             <div className="px-4 py-2.5 border-t border-[var(--color-border)]">
-                                <button className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-subtle)] w-full text-center">View all notifications</button>
+                                <button className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-subtle)] w-full text-center">{t('topbar.viewAllNotifications')}</button>
                             </div>
                         </div>
                     )}
@@ -332,9 +360,9 @@ function Topbar({ onMenuClick, userInitials, userName, userEmail, onLogout }: {
                             </div>
                             <div className="py-1">
                                 {[
-                                    { label: 'Profile', href: '/dashboard/settings/profile' },
-                                    { label: 'Billing', href: '/dashboard/settings/billing' },
-                                    { label: 'Settings', href: '/dashboard/settings' },
+                                    { label: t('topbar.profile'), href: '/dashboard/settings/profile' },
+                                    { label: t('topbar.billing'), href: '/dashboard/settings/billing' },
+                                    { label: t('nav.settings'), href: '/dashboard/settings' },
                                 ].map((item) => (
                                     <Link
                                         key={item.href}
@@ -346,13 +374,35 @@ function Topbar({ onMenuClick, userInitials, userName, userEmail, onLogout }: {
                                     </Link>
                                 ))}
                             </div>
+                            {/* Language switcher */}
+                            <div className="py-2 px-4 border-t border-[var(--color-border)]">
+                                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)] font-semibold mb-2">
+                                    {t('language.label')}
+                                </p>
+                                <div className="flex gap-1">
+                                    {(['en', 'es'] as const).map((lng) => (
+                                        <button
+                                            key={lng}
+                                            onClick={() => setLocale(lng)}
+                                            className={[
+                                                'flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors',
+                                                locale === lng
+                                                    ? 'bg-violet-600 text-white'
+                                                    : 'bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+                                            ].join(' ')}
+                                        >
+                                            {t(`language.${lng}`)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <div className="py-1 border-t border-[var(--color-border)]">
                                 <button
                                     onClick={onLogout}
                                     className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full text-left"
                                 >
                                     <IconLogout />
-                                    Sign out
+                                    {t('topbar.signOut')}
                                 </button>
                             </div>
                         </div>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { LocaleProvider } from '@/lib/i18n'
 
 export const metadata: Metadata = {
     title: {
@@ -22,9 +23,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <html lang="en" suppressHydrationWarning>
             <body className="font-sans antialiased">
                 <ThemeProvider>
-                    <AuthProvider>
-                        {children}
-                    </AuthProvider>
+                    <LocaleProvider>
+                        <AuthProvider>
+                            {children}
+                        </AuthProvider>
+                    </LocaleProvider>
                 </ThemeProvider>
             </body>
         </html>

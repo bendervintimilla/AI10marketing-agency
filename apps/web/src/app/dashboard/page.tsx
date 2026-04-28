@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiGet } from '@/lib/api'
+import { useTranslation } from '@/lib/i18n'
 
 /* ─── Icons ─── */
 function IconCampaign() {
@@ -96,7 +97,9 @@ function ChecklistItem({
     done,
     onToggle,
     href,
+    startLabel,
 }: {
+    startLabel: string
     label: string
     done: boolean
     onToggle: () => void
@@ -126,7 +129,7 @@ function ChecklistItem({
             </Link>
             {!done && (
                 <Link href={href} className="text-xs text-violet-400 hover:text-violet-300 shrink-0 font-medium">
-                    Start →
+                    {startLabel}
                 </Link>
             )}
         </div>
@@ -136,9 +139,12 @@ function ChecklistItem({
 /* ─── Page ─── */
 export default function DashboardPage() {
     const { user } = useAuth()
+    const { t } = useTranslation()
     const userName = (user?.email?.split('@')[0] || 'there')
     const hour = new Date().getHours()
-    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+    const greeting = hour < 12 ? t('dashboard.greetingMorning')
+        : hour < 18 ? t('dashboard.greetingAfternoon')
+            : t('dashboard.greetingEvening')
 
     const [stats, setStats] = useState<{ activeCampaigns: number; adsPublished: number; totalAdsPublished: number; totalReach: number; aiRecs: number; brandCount: number } | null>(null)
     const [brandCount, setBrandCount] = useState<number>(0)
@@ -201,11 +207,11 @@ export default function DashboardPage() {
     }, [user?.orgId])
 
     const checklistItems = [
-        { id: 'connect', label: 'Connect your social accounts', done: signals.hasSocialAccount, href: '/dashboard/settings/accounts' },
-        { id: 'brand', label: 'Upload brand assets (logo, colors)', done: signals.hasBrandMemory, href: '/dashboard/claude-design' },
-        { id: 'campaign', label: 'Create your first campaign', done: signals.hasCampaign, href: '/dashboard/campaigns/new' },
-        { id: 'media', label: 'Upload media to your library', done: signals.hasMedia, href: '/dashboard/media' },
-        { id: 'audit', label: 'Run your first brand audit', done: recentAudits.length > 0, href: '/dashboard/audits' },
+        { id: 'connect', label: t('dashboard.checklist.connectAccounts'), done: signals.hasSocialAccount, href: '/dashboard/settings/accounts' },
+        { id: 'brand', label: t('dashboard.checklist.uploadAssets'), done: signals.hasBrandMemory, href: '/dashboard/claude-design' },
+        { id: 'campaign', label: t('dashboard.checklist.createCampaign'), done: signals.hasCampaign, href: '/dashboard/campaigns/new' },
+        { id: 'media', label: t('dashboard.checklist.uploadLibrary'), done: signals.hasMedia, href: '/dashboard/media' },
+        { id: 'audit', label: t('dashboard.checklist.runAudit'), done: recentAudits.length > 0, href: '/dashboard/audits' },
     ]
 
     const toggleItem = (_id: string) => {
@@ -218,16 +224,16 @@ export default function DashboardPage() {
 
     const STATS: StatCardProps[] = [
         {
-            label: 'Brands',
+            label: t('dashboard.stats.brands'),
             value: String(brandCount),
-            changeLabel: brandCount === 1 ? 'brand in portfolio' : 'brands in portfolio',
+            changeLabel: brandCount === 1 ? t('dashboard.stats.brandsHintSingular') : t('dashboard.stats.brandsHint'),
             icon: <IconCampaign />,
             iconColor: 'bg-violet-500/10 text-violet-400',
         },
         {
-            label: 'Ads Published',
+            label: t('dashboard.stats.adsPublished'),
             value: stats ? String(stats.adsPublished) : '0',
-            changeLabel: 'this month',
+            changeLabel: t('dashboard.stats.adsPublishedHint'),
             icon: (
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
@@ -235,11 +241,11 @@ export default function DashboardPage() {
             ),
             iconColor: 'bg-blue-500/10 text-blue-400',
             secondaryLabel: stats && stats.totalAdsPublished > stats.adsPublished
-                ? `${stats.totalAdsPublished} all-time`
+                ? t('dashboard.stats.adsPublishedAllTime', { count: stats.totalAdsPublished })
                 : undefined,
         },
         {
-            label: 'Total Reach',
+            label: t('dashboard.stats.totalReach'),
             value: stats?.totalReach
                 ? stats.totalReach >= 1_000_000
                     ? `${(stats.totalReach / 1e6).toFixed(1)}M`
@@ -247,7 +253,7 @@ export default function DashboardPage() {
                         ? `${(stats.totalReach / 1e3).toFixed(1)}K`
                         : String(stats.totalReach)
                 : '—',
-            changeLabel: 'connect ad accounts',
+            changeLabel: t('dashboard.stats.totalReachHint'),
             icon: (
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
@@ -256,9 +262,9 @@ export default function DashboardPage() {
             iconColor: 'bg-emerald-500/10 text-emerald-400',
         },
         {
-            label: 'Audit Issues',
+            label: t('dashboard.stats.auditIssues'),
             value: stats ? String(stats.aiRecs) : '0',
-            changeLabel: 'failing checks across brands',
+            changeLabel: t('dashboard.stats.auditIssuesHint'),
             icon: <IconBrain />,
             iconColor: 'bg-amber-500/10 text-amber-400',
         },
@@ -274,17 +280,17 @@ export default function DashboardPage() {
 
     const ACTIVITY = recentAudits.length > 0 ? recentAudits.map((r) => {
         const statusBadge = {
-            COMPLETED: { label: r.score !== null ? `Score ${Math.round(r.score)}` : 'Completed', color: 'bg-emerald-500/15 text-emerald-400' },
-            RUNNING: { label: 'Running', color: 'bg-blue-500/15 text-blue-400' },
-            QUEUED: { label: 'Queued', color: 'bg-blue-500/15 text-blue-400' },
-            FAILED: { label: 'Failed', color: 'bg-red-500/15 text-red-400' },
+            COMPLETED: { label: r.score !== null ? `${t('audits.score')} ${Math.round(r.score)}` : t('common.completed'), color: 'bg-emerald-500/15 text-emerald-400' },
+            RUNNING: { label: t('common.running'), color: 'bg-blue-500/15 text-blue-400' },
+            QUEUED: { label: t('common.queued'), color: 'bg-blue-500/15 text-blue-400' },
+            FAILED: { label: t('common.failed'), color: 'bg-red-500/15 text-red-400' },
         }[r.status as 'COMPLETED' | 'RUNNING' | 'QUEUED' | 'FAILED'] || { label: r.status, color: 'bg-gray-500/15 text-gray-400' }
         return {
             id: r.id,
             type: 'audit',
             icon: r.platform === 'INSTAGRAM' ? <IconInstagram /> : <IconBrain />,
             iconBg: r.platform === 'INSTAGRAM' ? 'bg-gradient-to-br from-purple-500 to-pink-500' : 'bg-violet-500/15 text-violet-400',
-            text: `${r.platform} audit on "${r.brandName}"`,
+            text: `${r.platform} audit · "${r.brandName}"`,
             meta: timeAgo(r.startedAt),
             badge: statusBadge.label,
             badgeColor: statusBadge.color,
@@ -295,9 +301,9 @@ export default function DashboardPage() {
             type: 'empty',
             icon: <IconBrain />,
             iconBg: 'bg-violet-500/15 text-violet-400',
-            text: 'No audits run yet — head to Brand Audits to run your first one',
+            text: t('dashboard.noAudits'),
             meta: '',
-            badge: 'Get Started',
+            badge: t('dashboard.getStarted'),
             badgeColor: 'bg-violet-500/15 text-violet-400',
         },
     ]
@@ -311,7 +317,7 @@ export default function DashboardPage() {
                         {greeting}, {userName} 👋
                     </h1>
                     <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                        Here's what's happening with your campaigns today.
+                        {t('dashboard.subtitle')}
                     </p>
                 </div>
                 <Link
@@ -319,7 +325,7 @@ export default function DashboardPage() {
                     className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-all duration-150 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30"
                 >
                     <IconPlus />
-                    New Campaign
+                    {t('dashboard.newCampaign')}
                 </Link>
             </div>
 
@@ -336,9 +342,9 @@ export default function DashboardPage() {
                 <div className="xl:col-span-2">
                     <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-                            <h2 className="text-sm font-semibold text-[var(--color-text)]">Recent Activity</h2>
+                            <h2 className="text-sm font-semibold text-[var(--color-text)]">{t('dashboard.recentActivity')}</h2>
                             <Link href="/dashboard/audits" className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors">
-                                View all
+                                {t('common.viewAll')}
                             </Link>
                         </div>
                         <div className="divide-y divide-[var(--color-border)]">
@@ -374,25 +380,25 @@ export default function DashboardPage() {
                 <div className="space-y-6">
                     {/* Quick actions */}
                     <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5">
-                        <h2 className="text-sm font-semibold text-[var(--color-text)] mb-4">Quick Actions</h2>
+                        <h2 className="text-sm font-semibold text-[var(--color-text)] mb-4">{t('dashboard.quickActions')}</h2>
                         <div className="space-y-2">
                             {[
                                 {
                                     href: '/dashboard/campaigns/new',
                                     icon: <IconPlus />,
-                                    label: 'New Campaign',
+                                    label: t('dashboard.newCampaign'),
                                     color: 'bg-violet-500/10 text-violet-400 hover:bg-violet-500/20',
                                 },
                                 {
                                     href: '/dashboard/media',
                                     icon: <IconImage />,
-                                    label: 'Upload Media',
+                                    label: t('dashboard.uploadMedia'),
                                     color: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20',
                                 },
                                 {
                                     href: '/dashboard/audits',
                                     icon: <IconBrain />,
-                                    label: 'Review Audit Issues',
+                                    label: t('dashboard.reviewAudits'),
                                     color: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
                                     badge: stats && stats.aiRecs > 0 ? String(stats.aiRecs) : undefined,
                                 },
@@ -420,7 +426,7 @@ export default function DashboardPage() {
                     {/* Getting Started Checklist */}
                     <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5">
                         <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-sm font-semibold text-[var(--color-text)]">Getting Started</h2>
+                            <h2 className="text-sm font-semibold text-[var(--color-text)]">{t('dashboard.gettingStarted')}</h2>
                             <span className="text-xs text-violet-400 font-semibold">
                                 {completedCount}/{checklistItems.length}
                             </span>
@@ -442,6 +448,7 @@ export default function DashboardPage() {
                                     done={item.done}
                                     onToggle={() => toggleItem(item.id)}
                                     href={item.href}
+                                    startLabel={t('dashboard.checklist.start')}
                                 />
                             ))}
                         </div>
