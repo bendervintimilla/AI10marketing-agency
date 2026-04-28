@@ -86,6 +86,26 @@ def main():
             result = run_instagram_audit(spec)
         elif platform == "LANDING":
             result = run_landing_audit(spec)
+        elif platform in ("META", "GOOGLE", "TIKTOK", "YOUTUBE", "LINKEDIN", "MICROSOFT"):
+            # Skill-doc-only mode: no live data fetcher wired yet for these
+            # platforms (or credentials not connected). The Claude agent in
+            # the worker will still produce a full strategic analysis from
+            # BrandMemory + the platform's .md skill doc. We return an empty
+            # checklist with a flag so the agent knows it's running blind.
+            result = {
+                "checks": [],
+                "score": None,
+                "grade": None,
+                "summary": {
+                    "mode": "skill_doc_only",
+                    "message": f"No live {platform} data fetched — Claude will analyze using the skill doc + brand memory.",
+                    "by_category": {},
+                },
+                "raw_data": {
+                    "platform": platform,
+                    "note": "Connect ad account in Settings → Accounts to enable live data fetching.",
+                },
+            }
         else:
             raise ValueError(f"Unsupported platform: {platform}")
 

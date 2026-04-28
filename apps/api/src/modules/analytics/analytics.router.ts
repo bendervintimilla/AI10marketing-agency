@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { prisma } from '@agency/db';
+import { requireAuth } from '../auth/auth.middleware';
 import {
     getCampaignAnalytics,
     getAdTimeSeries,
@@ -24,6 +26,64 @@ function rowsToCsv(rows: Record<string, any>[]): string {
 }
 
 export async function analyticsRoutes(fastify: FastifyInstance) {
+    // ── GET /analytics/dashboard-stats ──────────────────────────────────────
+    // Top-level numbers shown on the dashboard home cards. All scoped to the
+    // current organization. Returns real counts (not mock).
+    fastify.get(
+        '/analytics/dashboard-stats',
+        { preHandler: requireAuth },
+        async (req: FastifyRequest, reply: FastifyReply) => {
+            const user = (req as any).user as { organizationId: string };
+            const orgId = user?.organizationId;
+            if (!orgId) {
+                return reply.status(400).send({ error: 'Missing organizationId on token' });
+            }
+
+            const monthStart = new Date();
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+
+            const [activeCampaigns, adsPublishedThisMonth, totalAdsPublished, failedChecks, brandCount] =
+                await Promise.all([
+                    prisma.campaign.count({
+                        where: { organizationId: orgId, status: 'ACTIVE' as any },
+                    }),
+                    prisma.ad.count({
+                        where: {
+                            campaign: { organizationId: orgId },
+                            status: 'PUBLISHED' as any,
+                            publishedAt: { gte: monthStart },
+                        },
+                    }),
+                    prisma.ad.count({
+                        where: {
+                            campaign: { organizationId: orgId },
+                            status: 'PUBLISHED' as any,
+                        },
+                    }),
+                    // "AI Recommendations" pending review = failed audit checks
+                    // across all the org's brands. These are the real, actionable
+                    // findings the user should review.
+                    prisma.auditCheck.count({
+                        where: {
+                            status: 'FAIL' as any,
+                            auditRun: { brand: { organizationId: orgId } },
+                        },
+                    }),
+                    prisma.brand.count({ where: { organizationId: orgId } }),
+                ]);
+
+            return reply.send({
+                activeCampaigns,
+                adsPublished: adsPublishedThisMonth,
+                totalAdsPublished,
+                totalReach: 0, // No ad-level metrics ingested yet — placeholder until publish telemetry lands.
+                aiRecs: failedChecks,
+                brandCount,
+            });
+        }
+    );
+
     // ── GET /analytics/campaign/:id ──────────────────────────────────────────
     fastify.get<{ Params: { id: string } }>(
         '/analytics/campaign/:id',

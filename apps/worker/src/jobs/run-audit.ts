@@ -15,6 +15,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { prisma } from '@agency/db';
 import { decrypt } from '../lib/crypto';
+import { analyzeAudit, renderAnalysisMarkdown, AuditAnalysis } from '../agents/audit-agent';
 
 const AUDITS_PATH = path.resolve(__dirname, '../../../audits/src/audit_runner.py');
 const PYTHON = process.env.PYTHON_BIN || 'python3';
@@ -109,6 +110,25 @@ async function buildSpec(brandId: string, platform: string): Promise<object> {
             platform: 'LANDING',
             url: brand.websiteUrl,
             brand_name: brand.name,
+        };
+    }
+
+    // Other platforms run in "skill-doc-only mode" — Python returns an empty
+    // checklist and the Claude agent does the analysis from BrandMemory + the
+    // platform .md skill doc. This unblocks the UI for all platforms even
+    // before we have live data fetchers + connected ad accounts for each.
+    if (
+        platform === 'META' ||
+        platform === 'GOOGLE' ||
+        platform === 'TIKTOK' ||
+        platform === 'YOUTUBE'
+    ) {
+        return {
+            platform,
+            brand_name: brand.name,
+            // Pass any context the agent can use — website helps platforms
+            // like Google Ads where landing page quality matters.
+            website_url: brand.websiteUrl ?? null,
         };
     }
 
@@ -220,21 +240,64 @@ export async function processRunAudit(job: Job<AuditJobPayload>) {
             });
         }
 
-        // 3. Render + persist markdown report
+        // 3. Run Claude strategic analysis on top of the deterministic checks.
+        //    This is the "agentic skill" layer — Claude loads brand memory,
+        //    skill doc, audit history, and writes brand-specific recommendations.
+        //    Disabled if ANTHROPIC_API_KEY is missing (analyzeAudit returns null).
         const brand = await prisma.brand.findUniqueOrThrow({ where: { id: brandId } });
-        const markdown = renderMarkdown(result, brand.name, platform);
+        let analysis: AuditAnalysis | null = null;
+        try {
+            analysis = await analyzeAudit({
+                organizationId: brand.organizationId,
+                brandId: brand.id,
+                brandName: brand.name,
+                platform,
+                rawResult: {
+                    score: result.score,
+                    grade: result.grade,
+                    checks: result.checks,
+                    summary: result.summary,
+                    raw: result.raw_data ?? result.account ?? null,
+                },
+            });
+            if (analysis) {
+                console.log(`[run-audit] 🤖 ai analysis: ${analysis.toolCalls} tool calls in ${analysis.durationMs}ms`);
+            }
+        } catch (err: any) {
+            console.error('[run-audit] ai analysis failed:', err?.message ?? err);
+            // Non-fatal: continue with the deterministic-only report.
+        }
+
+        // 4. Render + persist markdown report. AI analysis goes ON TOP of the
+        //    raw checklist sections so users see the strategic narrative first.
+        const checklistMarkdown = renderMarkdown(result, brand.name, platform);
+        const markdown = analysis
+            ? `${renderAnalysisMarkdown(analysis)}\n---\n\n${checklistMarkdown}`
+            : checklistMarkdown;
         await prisma.auditReport.create({
             data: { auditRunId, markdown },
         });
 
-        // 4. Mark COMPLETED
+        // 5. Persist AI analysis JSON into AuditRun.summary for the frontend
+        //    (frontend can render the structured topActions card without parsing markdown).
+        const enrichedSummary = analysis
+            ? { ...(result.summary ?? {}), ai: {
+                executiveSummary: analysis.executiveSummary,
+                topActions: analysis.topActions,
+                creativeIdeas: analysis.creativeIdeas,
+                trendNotes: analysis.trendNotes,
+                toolCalls: analysis.toolCalls,
+            } }
+            : result.summary;
+
+        // 6. Mark COMPLETED
         await prisma.auditRun.update({
             where: { id: auditRunId },
             data: {
                 status: 'COMPLETED',
                 score: result.score,
                 grade: result.grade,
-                summary: result.summary,
+                summary: enrichedSummary,
                 completedAt: new Date(),
                 durationMs: Date.now() - startedAt,
             },

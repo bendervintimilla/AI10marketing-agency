@@ -60,39 +60,24 @@ function IconTikTok() {
 interface StatCardProps {
     label: string
     value: string
-    change: number
     changeLabel: string
     icon: React.ReactNode
     iconColor: string
-    sparkline: number[]
+    secondaryLabel?: string
 }
 
-function StatCard({ label, value, change, changeLabel, icon, iconColor, sparkline }: StatCardProps) {
-    const isPositive = change >= 0
-    const width = 80
-    const height = 28
-    const min = Math.min(...sparkline)
-    const max = Math.max(...sparkline)
-    const range = max - min || 1
-    const step = width / (sparkline.length - 1)
-    const points = sparkline.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`).join(' ')
-
+function StatCard({ label, value, changeLabel, icon, iconColor, secondaryLabel }: StatCardProps) {
     return (
         <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5 hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-500/5 transition-all duration-200">
             <div className="flex items-start justify-between mb-3">
                 <div className={['rounded-lg p-2.5 shrink-0', iconColor].join(' ')}>
                     {icon}
                 </div>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <polyline
-                        points={points}
-                        fill="none"
-                        stroke={isPositive ? '#34d399' : '#f87171'}
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
-                </svg>
+                {secondaryLabel && (
+                    <span className="text-[10px] font-semibold text-[var(--color-text-subtle)] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-surface-raised)]">
+                        {secondaryLabel}
+                    </span>
+                )}
             </div>
             <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
                 {label}
@@ -100,13 +85,7 @@ function StatCard({ label, value, change, changeLabel, icon, iconColor, sparklin
             <p className="text-3xl font-black text-[var(--color-text)] tabular-nums leading-none mb-2">
                 {value}
             </p>
-            <div className={['flex items-center gap-1 text-xs font-medium', isPositive ? 'text-emerald-400' : 'text-red-400'].join(' ')}>
-                <svg className={['h-3.5 w-3.5', !isPositive && 'rotate-180'].join(' ')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                </svg>
-                {Math.abs(change)}%
-                <span className="text-[var(--color-text-subtle)] font-normal">{changeLabel}</span>
-            </div>
+            <p className="text-xs text-[var(--color-text-subtle)] font-normal">{changeLabel}</p>
         </div>
     )
 }
@@ -161,7 +140,7 @@ export default function DashboardPage() {
     const hour = new Date().getHours()
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
-    const [stats, setStats] = useState<{ activeCampaigns: number; adsPublished: number; totalReach: number; aiRecs: number } | null>(null)
+    const [stats, setStats] = useState<{ activeCampaigns: number; adsPublished: number; totalAdsPublished: number; totalReach: number; aiRecs: number; brandCount: number } | null>(null)
     const [brandCount, setBrandCount] = useState<number>(0)
     const [recentAudits, setRecentAudits] = useState<any[]>([])
 
@@ -189,18 +168,49 @@ export default function DashboardPage() {
         }).catch(() => { /* nothing */ })
     }, [])
 
-    const [checklistItems, setChecklistItems] = useState([
-        { id: 'connect', label: 'Connect your social accounts', done: false, href: '/dashboard/settings/accounts' },
-        { id: 'brand', label: 'Upload brand assets (logo, colors)', done: true, href: '/dashboard/settings/profile' },
-        { id: 'campaign', label: 'Create your first campaign', done: false, href: '/dashboard/campaigns/new' },
-        { id: 'media', label: 'Upload media to your library', done: true, href: '/dashboard/media' },
-        { id: 'ai', label: 'Review your first AI recommendations', done: false, href: '/dashboard/ai-insights' },
-    ])
+    // Real-state checklist — each item is "done" only when we observe the signal
+    // in the API. Falls back to false until the relevant fetch resolves so the
+    // user never sees a green check for work they haven't actually done.
+    const [signals, setSignals] = useState({
+        hasSocialAccount: false,
+        hasBrandMemory: false,
+        hasCampaign: false,
+        hasMedia: false,
+        hasReviewedAudit: false,
+    })
 
-    const toggleItem = (id: string) => {
-        setChecklistItems((items) =>
-            items.map((item) => (item.id === id ? { ...item, done: !item.done } : item))
-        )
+    useEffect(() => {
+        if (!user?.orgId) return
+        const orgId = user.orgId
+        // Fire all checks in parallel; each silently falls back to false on error.
+        Promise.all([
+            apiGet<any[]>(`/publish/accounts?orgId=${orgId}`).catch(() => []),
+            apiGet<any[]>('/brands').catch(() => []),
+            apiGet<any[]>('/campaigns').catch(() => []),
+            apiGet<{ assets?: any[] }>(`/media?orgId=${orgId}`).catch(() => ({ assets: [] })),
+        ]).then(([accounts, brands, campaigns, media]) => {
+            const hasMemory = brands.some((b: any) => b.memoryId || b.memory)
+            setSignals({
+                hasSocialAccount: Array.isArray(accounts) && accounts.length > 0,
+                hasBrandMemory: hasMemory,
+                hasCampaign: Array.isArray(campaigns) && campaigns.length > 0,
+                hasMedia: !!(media as any)?.assets?.length,
+                hasReviewedAudit: false,
+            })
+        }).catch(() => { /* leave defaults */ })
+    }, [user?.orgId])
+
+    const checklistItems = [
+        { id: 'connect', label: 'Connect your social accounts', done: signals.hasSocialAccount, href: '/dashboard/settings/accounts' },
+        { id: 'brand', label: 'Upload brand assets (logo, colors)', done: signals.hasBrandMemory, href: '/dashboard/claude-design' },
+        { id: 'campaign', label: 'Create your first campaign', done: signals.hasCampaign, href: '/dashboard/campaigns/new' },
+        { id: 'media', label: 'Upload media to your library', done: signals.hasMedia, href: '/dashboard/media' },
+        { id: 'audit', label: 'Run your first brand audit', done: recentAudits.length > 0, href: '/dashboard/audits' },
+    ]
+
+    const toggleItem = (_id: string) => {
+        // Checklist is now derived from real state — toggling is a no-op.
+        // Items resolve automatically once the user completes the underlying action.
     }
 
     const completedCount = checklistItems.filter((i) => i.done).length
@@ -210,16 +220,13 @@ export default function DashboardPage() {
         {
             label: 'Brands',
             value: String(brandCount),
-            change: 0,
-            changeLabel: 'in your portfolio',
+            changeLabel: brandCount === 1 ? 'brand in portfolio' : 'brands in portfolio',
             icon: <IconCampaign />,
             iconColor: 'bg-violet-500/10 text-violet-400',
-            sparkline: [4, 7, 5, 9, 8, 12],
         },
         {
             label: 'Ads Published',
             value: stats ? String(stats.adsPublished) : '0',
-            change: 0,
             changeLabel: 'this month',
             icon: (
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -227,29 +234,33 @@ export default function DashboardPage() {
                 </svg>
             ),
             iconColor: 'bg-blue-500/10 text-blue-400',
-            sparkline: [180, 210, 195, 240, 260, 284],
+            secondaryLabel: stats && stats.totalAdsPublished > stats.adsPublished
+                ? `${stats.totalAdsPublished} all-time`
+                : undefined,
         },
         {
             label: 'Total Reach',
-            value: stats?.totalReach ? `${(stats.totalReach / 1e6).toFixed(1)}M` : '0',
-            change: 0,
-            changeLabel: 'total',
+            value: stats?.totalReach
+                ? stats.totalReach >= 1_000_000
+                    ? `${(stats.totalReach / 1e6).toFixed(1)}M`
+                    : stats.totalReach >= 1_000
+                        ? `${(stats.totalReach / 1e3).toFixed(1)}K`
+                        : String(stats.totalReach)
+                : '—',
+            changeLabel: 'connect ad accounts',
             icon: (
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                 </svg>
             ),
             iconColor: 'bg-emerald-500/10 text-emerald-400',
-            sparkline: [600000, 750000, 900000, 1000000, 1100000, 1200000],
         },
         {
-            label: 'AI Recommendations',
+            label: 'Audit Issues',
             value: stats ? String(stats.aiRecs) : '0',
-            change: 0,
-            changeLabel: 'pending review',
+            changeLabel: 'failing checks across brands',
             icon: <IconBrain />,
             iconColor: 'bg-amber-500/10 text-amber-400',
-            sparkline: [2, 5, 3, 8, 6, 7],
         },
     ]
 
@@ -369,11 +380,11 @@ export default function DashboardPage() {
                                     color: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20',
                                 },
                                 {
-                                    href: '/dashboard/ai-insights',
+                                    href: '/dashboard/audits',
                                     icon: <IconBrain />,
-                                    label: 'View AI Recommendations',
+                                    label: 'Review Audit Issues',
                                     color: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
-                                    badge: '7',
+                                    badge: stats && stats.aiRecs > 0 ? String(stats.aiRecs) : undefined,
                                 },
                             ].map((action) => (
                                 <Link

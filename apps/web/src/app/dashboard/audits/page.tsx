@@ -25,6 +25,10 @@ interface AuditRun {
 
 const platforms = [
     { key: 'INSTAGRAM', label: 'Instagram', icon: '📸' },
+    { key: 'META', label: 'Meta Ads', icon: '📘' },
+    { key: 'GOOGLE', label: 'Google Ads', icon: '🔎' },
+    { key: 'TIKTOK', label: 'TikTok', icon: '🎵' },
+    { key: 'YOUTUBE', label: 'YouTube', icon: '▶️' },
     { key: 'LANDING', label: 'Landing', icon: '🌐' },
 ] as const
 
