@@ -116,13 +116,15 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
     );
 
     // ── GET /analytics/org/overview ──────────────────────────────────────────
+    // Auth-scoped: derives orgId from the JWT instead of trusting a header.
     fastify.get(
         '/analytics/org/overview',
+        { preHandler: requireAuth },
         async (req: FastifyRequest, reply: FastifyReply) => {
-            // In a real system: extract orgId from JWT via req.user.orgId
-            const orgId = (req.headers['x-org-id'] as string) ?? '';
+            const user = (req as any).user as { organizationId?: string };
+            const orgId = user?.organizationId ?? (req.headers['x-org-id'] as string) ?? '';
             if (!orgId) {
-                return reply.status(400).send({ error: 'x-org-id header required' });
+                return reply.status(400).send({ error: 'organization context missing' });
             }
             const data = await getOrgOverview(orgId);
             return reply.send(data);
