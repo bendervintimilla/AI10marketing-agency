@@ -342,20 +342,30 @@ export default function DashboardPage() {
                             </Link>
                         </div>
                         <div className="divide-y divide-[var(--color-border)]">
-                            {ACTIVITY.map((a) => (
-                                <div key={a.id} className="flex items-start gap-3.5 px-5 py-4 hover:bg-[var(--color-bg-subtle)] transition-colors">
-                                    <div className={['h-8 w-8 rounded-lg flex items-center justify-center shrink-0', a.iconBg].join(' ')}>
-                                        {a.icon}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-[var(--color-text)] leading-snug">{a.text}</p>
-                                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{a.meta}</p>
-                                    </div>
-                                    <span className={['shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide', a.badgeColor].join(' ')}>
-                                        {a.badge}
-                                    </span>
-                                </div>
-                            ))}
+                            {ACTIVITY.map((a) => {
+                                const isAudit = a.type === 'audit'
+                                const href = isAudit ? `/dashboard/audits/${a.id}` : '/dashboard/audits'
+                                const className = 'flex items-start gap-3.5 px-5 py-4 hover:bg-[var(--color-bg-subtle)] transition-colors'
+                                const inner = (
+                                    <>
+                                        <div className={['h-8 w-8 rounded-lg flex items-center justify-center shrink-0', a.iconBg].join(' ')}>
+                                            {a.icon}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-[var(--color-text)] leading-snug">{a.text}</p>
+                                            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{a.meta}</p>
+                                        </div>
+                                        <span className={['shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide', a.badgeColor].join(' ')}>
+                                            {a.badge}
+                                        </span>
+                                    </>
+                                )
+                                return isAudit ? (
+                                    <Link key={a.id} href={href} className={className}>{inner}</Link>
+                                ) : (
+                                    <div key={a.id} className={className}>{inner}</div>
+                                )
+                            })}
                         </div>
                     </div>
                 </div>
