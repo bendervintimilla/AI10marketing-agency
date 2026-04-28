@@ -33,10 +33,11 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         '/analytics/dashboard-stats',
         { preHandler: requireAuth },
         async (req: FastifyRequest, reply: FastifyReply) => {
-            const user = (req as any).user as { organizationId: string };
-            const orgId = user?.organizationId;
+            // JWT payload uses `orgId` (see auth.controller.ts).
+            const user = (req as any).user as { orgId?: string; organizationId?: string };
+            const orgId = user?.orgId ?? user?.organizationId;
             if (!orgId) {
-                return reply.status(400).send({ error: 'Missing organizationId on token' });
+                return reply.status(400).send({ error: 'Missing organization on token' });
             }
 
             const monthStart = new Date();
@@ -121,8 +122,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         '/analytics/org/overview',
         { preHandler: requireAuth },
         async (req: FastifyRequest, reply: FastifyReply) => {
-            const user = (req as any).user as { organizationId?: string };
-            const orgId = user?.organizationId ?? (req.headers['x-org-id'] as string) ?? '';
+            const user = (req as any).user as { orgId?: string; organizationId?: string };
+            const orgId = user?.orgId ?? user?.organizationId ?? (req.headers['x-org-id'] as string) ?? '';
             if (!orgId) {
                 return reply.status(400).send({ error: 'organization context missing' });
             }

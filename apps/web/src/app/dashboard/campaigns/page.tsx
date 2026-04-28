@@ -14,14 +14,6 @@ interface Campaign {
     goal: 'Awareness' | 'Engagement' | 'Conversion'
 }
 
-const FALLBACK_CAMPAIGNS: Campaign[] = [
-    { id: 'cmp_1', name: 'Summer Sale 2026', status: 'Active', platforms: ['INSTAGRAM', 'TIKTOK'], startDate: '2026-06-01', endDate: '2026-06-30', adsCount: 12, impressions: 482000, clicks: 14300, budget: 5000, spent: 2340, goal: 'Conversion' },
-    { id: 'cmp_2', name: 'Brand Awareness Q1', status: 'Completed', platforms: ['INSTAGRAM', 'FACEBOOK'], startDate: '2026-01-01', endDate: '2026-03-31', adsCount: 24, impressions: 1200000, clicks: 38000, budget: 8000, spent: 7880, goal: 'Awareness' },
-    { id: 'cmp_3', name: 'Product Launch - Alpha', status: 'Draft', platforms: ['INSTAGRAM', 'TIKTOK', 'FACEBOOK'], startDate: '2026-03-15', adsCount: 0, impressions: 0, clicks: 0, budget: 3500, spent: 0, goal: 'Conversion' },
-    { id: 'cmp_4', name: 'Spring Engagement Drive', status: 'Paused', platforms: ['TIKTOK'], startDate: '2026-02-15', endDate: '2026-04-15', adsCount: 6, impressions: 95000, clicks: 8100, budget: 2500, spent: 1100, goal: 'Engagement' },
-    { id: 'cmp_5', name: 'Holiday Special', status: 'Draft', platforms: ['INSTAGRAM', 'FACEBOOK'], startDate: '2026-12-01', endDate: '2026-12-31', adsCount: 0, impressions: 0, clicks: 0, budget: 6000, spent: 0, goal: 'Awareness' },
-]
-
 function fmt(n: number) { return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n) }
 function fmtDate(s: string) { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
 
@@ -144,17 +136,21 @@ function CampaignRow({ c }: { c: Campaign }) {
 const FILTERS: Array<'All' | CampaignStatus> = ['All', 'Active', 'Draft', 'Paused', 'Completed']
 
 export default function CampaignsPage() {
-    const [campaigns, setCampaigns] = useState<Campaign[]>(FALLBACK_CAMPAIGNS)
+    const [campaigns, setCampaigns] = useState<Campaign[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [filter, setFilter] = useState<'All' | CampaignStatus>('All')
     const [view, setView] = useState<'grid' | 'list'>('grid')
     const [search, setSearch] = useState('')
 
     useEffect(() => {
         apiGet('/campaigns').then((data: any) => {
-            if (data?.campaigns?.length) setCampaigns(data.campaigns)
-        }).catch(() => {
-            // API not available – keep fallback data
+            // Endpoint returns { campaigns: [...] } but accept a bare array for safety
+            const list = Array.isArray(data) ? data : (data?.campaigns ?? [])
+            setCampaigns(list)
+        }).catch((err: any) => {
+            setError(err?.message ?? 'Failed to load campaigns')
+            setCampaigns([])
         }).finally(() => setLoading(false))
     }, [])
 
@@ -207,8 +203,15 @@ export default function CampaignsPage() {
                 </div>
             </div>
 
+            {/* Error */}
+            {error && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+                    Failed to load campaigns: {error}
+                </div>
+            )}
+
             {/* Empty */}
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
                     <div className="h-16 w-16 rounded-2xl bg-violet-500/10 flex items-center justify-center mb-4 text-violet-400"><IconPlus /></div>
                     <h3 className="text-base font-semibold text-[var(--color-text)] mb-1">No campaigns found</h3>
