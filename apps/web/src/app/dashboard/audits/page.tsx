@@ -34,6 +34,7 @@ const PLATFORM_KEYS = [
 ] as const
 
 export default function AuditsPage() {
+    const { t, locale } = useTranslation()
     const [brands, setBrands] = useState<Brand[]>([])
     const [runs, setRuns] = useState<Record<string, AuditRun[]>>({})
     const [loading, setLoading] = useState(true)
@@ -66,7 +67,9 @@ export default function AuditsPage() {
     async function runAudit(brandId: string, platform: string) {
         setRunning(`${brandId}-${platform}`)
         try {
-            await apiPost('/audits', { brandId, platform })
+            // Send the user's current UI locale so the worker generates the
+            // report (Claude analysis + section headers) in that language.
+            await apiPost('/audits', { brandId, platform, locale })
             await loadData()
         } catch (err: any) {
             alert(`Failed to start audit: ${err.message ?? err}`)
@@ -79,8 +82,6 @@ export default function AuditsPage() {
         const list = runs[brandId] ?? []
         return list.find((r) => r.platform === platform) ?? null
     }
-
-    const { t } = useTranslation()
 
     if (loading) {
         return (

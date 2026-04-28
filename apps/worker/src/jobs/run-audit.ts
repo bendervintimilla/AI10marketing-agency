@@ -15,7 +15,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { prisma } from '@agency/db';
 import { decrypt } from '../lib/crypto';
-import { analyzeAudit, renderAnalysisMarkdown, AuditAnalysis } from '../agents/audit-agent';
+import { analyzeAudit, renderAnalysisMarkdown, reportStrings, AuditAnalysis } from '../agents/audit-agent';
 
 const AUDITS_PATH = path.resolve(__dirname, '../../../audits/src/audit_runner.py');
 const PYTHON = process.env.PYTHON_BIN || 'python3';
@@ -25,6 +25,8 @@ export interface AuditJobPayload {
     brandId: string;
     platform: 'INSTAGRAM' | 'META' | 'GOOGLE' | 'TIKTOK' | 'YOUTUBE' | 'LANDING';
     triggeredBy?: string;
+    /** UI locale at the time the audit was queued — drives report language. */
+    locale?: string;
 }
 
 // ─── Run Python audit_runner ──────────────────────────────────────────────────
@@ -137,7 +139,8 @@ async function buildSpec(brandId: string, platform: string): Promise<object> {
 
 // ─── Render markdown report from audit result ─────────────────────────────────
 
-function renderMarkdown(result: any, brandName: string, platform: string): string {
+function renderMarkdown(result: any, brandName: string, platform: string, locale?: string): string {
+    const S = reportStrings(locale);
     const checks = result.checks || [];
     const summary = result.summary || {};
     const score = result.score ?? 0;
@@ -148,18 +151,18 @@ function renderMarkdown(result: any, brandName: string, platform: string): strin
     const failed = checks.filter((c: any) => c.status === 'FAIL');
 
     const lines: string[] = [];
-    lines.push(`# ${platform} Audit — ${brandName}`);
-    lines.push(`> Generated: ${new Date().toISOString()}`);
+    lines.push(`# ${S.auditTitle(platform, brandName)}`);
+    lines.push(`> ${S.generated}: ${new Date().toISOString()}`);
     lines.push('');
-    lines.push(`## Score: ${score}/100 (Grade ${grade})`);
+    lines.push(`## ${S.scoreLine(score, grade)}`);
     lines.push('');
 
     // Category breakdown
     const byCat = summary.by_category || {};
     if (Object.keys(byCat).length > 0) {
-        lines.push('### Category Breakdown');
+        lines.push(`### ${S.categoryBreakdown}`);
         lines.push('');
-        lines.push('| Category | Score |');
+        lines.push(`| ${S.category} | ${S.score} |`);
         lines.push('|---|---|');
         for (const [cat, b] of Object.entries(byCat) as any) {
             lines.push(`| ${cat} | ${b.score ?? 'N/A'}/100 |`);
@@ -169,14 +172,14 @@ function renderMarkdown(result: any, brandName: string, platform: string): strin
 
     // Failed checks (most important)
     if (failed.length > 0) {
-        lines.push(`## ❌ Failed Checks (${failed.length})`);
+        lines.push(`## ${S.failedChecks(failed.length)}`);
         lines.push('');
         for (const c of failed) {
             lines.push(`### ${c.check_id} — ${c.message}`);
-            lines.push(`*Category*: ${c.category} · *Severity*: ${c.severity}`);
+            lines.push(`*${S.category2}*: ${c.category} · *${S.severity}*: ${c.severity}`);
             if (c.recommendation) {
                 lines.push('');
-                lines.push(`**Fix**: ${c.recommendation}`);
+                lines.push(`**${S.fix}**: ${c.recommendation}`);
             }
             lines.push('');
         }
@@ -184,18 +187,18 @@ function renderMarkdown(result: any, brandName: string, platform: string): strin
 
     // Warnings
     if (warned.length > 0) {
-        lines.push(`## ⚠️  Warnings (${warned.length})`);
+        lines.push(`## ${S.warnings(warned.length)}`);
         lines.push('');
         for (const c of warned) {
             lines.push(`- **${c.check_id}**: ${c.message}`);
-            if (c.recommendation) lines.push(`  - Fix: ${c.recommendation}`);
+            if (c.recommendation) lines.push(`  - ${S.fix}: ${c.recommendation}`);
         }
         lines.push('');
     }
 
     // Passed
     if (passed.length > 0) {
-        lines.push(`## ✅ Passed Checks (${passed.length})`);
+        lines.push(`## ${S.passedChecks(passed.length)}`);
         lines.push('');
         for (const c of passed) {
             lines.push(`- ${c.check_id}: ${c.message}`);
@@ -208,7 +211,7 @@ function renderMarkdown(result: any, brandName: string, platform: string): strin
 // ─── Main processor ──────────────────────────────────────────────────────────
 
 export async function processRunAudit(job: Job<AuditJobPayload>) {
-    const { auditRunId, brandId, platform } = job.data;
+    const { auditRunId, brandId, platform, locale } = job.data;
     const startedAt = Date.now();
 
     console.log(`[run-audit] ▶ ${platform} audit for brand=${brandId} (run=${auditRunId})`);
@@ -252,6 +255,7 @@ export async function processRunAudit(job: Job<AuditJobPayload>) {
                 brandId: brand.id,
                 brandName: brand.name,
                 platform,
+                locale,
                 rawResult: {
                     score: result.score,
                     grade: result.grade,
@@ -270,9 +274,9 @@ export async function processRunAudit(job: Job<AuditJobPayload>) {
 
         // 4. Render + persist markdown report. AI analysis goes ON TOP of the
         //    raw checklist sections so users see the strategic narrative first.
-        const checklistMarkdown = renderMarkdown(result, brand.name, platform);
+        const checklistMarkdown = renderMarkdown(result, brand.name, platform, locale);
         const markdown = analysis
-            ? `${renderAnalysisMarkdown(analysis)}\n---\n\n${checklistMarkdown}`
+            ? `${renderAnalysisMarkdown(analysis, locale)}\n---\n\n${checklistMarkdown}`
             : checklistMarkdown;
         await prisma.auditReport.create({
             data: { auditRunId, markdown },

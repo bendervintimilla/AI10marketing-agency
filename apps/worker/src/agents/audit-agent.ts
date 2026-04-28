@@ -328,6 +328,11 @@ export interface AuditAnalysisInput {
     brandId: string;
     brandName: string;
     platform: string;
+    /**
+     * BCP-47-ish locale. Currently only 'en' and 'es' produce translated output.
+     * Anything else falls back to English.
+     */
+    locale?: string;
     rawResult: {
         score?: number;
         grade?: string;
@@ -388,6 +393,11 @@ export async function analyzeAudit(
         platform: input.platform,
     };
 
+    const locale = (input.locale ?? 'en').toLowerCase().slice(0, 2);
+    const langInstruction = locale === 'es'
+        ? '\n\nLANGUAGE: Write ALL output values (executiveSummary, topActions[].title/rationale/specificSteps/expectedImpact, creativeIdeas[].concept/captionDraft, trendNotes, learnings) in neutral Latin American Spanish (Ecuador style — use "tú", "avísame", "configuración"; do NOT use Argentinian voseo or Iberian "vosotros"). Field names in the JSON stay in English. Citations of check IDs (IG-C1, etc.) stay verbatim.'
+        : '\n\nLANGUAGE: Write all output values in English.';
+
     // Initial user message: hand Claude the audit payload + a clear ask.
     const userPayload = {
         brandName: input.brandName,
@@ -421,6 +431,10 @@ export async function analyzeAudit(
                     type: 'text',
                     text: SYSTEM_PROMPT,
                     cache_control: { type: 'ephemeral' },
+                },
+                {
+                    type: 'text',
+                    text: langInstruction,
                 },
             ],
             tools: TOOLS,
@@ -488,45 +502,111 @@ export async function analyzeAudit(
     return parsed;
 }
 
+// Per-locale header strings used by both renderAnalysisMarkdown (Claude
+// section) and renderChecklistMarkdown (deterministic Python section).
+// English is the fallback for any unknown locale.
+const REPORT_STR = {
+    en: {
+        aiAnalysis: '🤖 AI Strategic Analysis',
+        noSummary: '_(no summary)_',
+        trend: 'Trend',
+        topPriorityActions: 'Top Priority Actions',
+        tiedToChecks: 'Tied to checks',
+        why: 'Why',
+        steps: 'Steps',
+        expectedImpact: 'Expected impact',
+        creativeIdeas: 'Creative Ideas',
+        tags: 'Tags',
+        learnings: 'Learnings recorded',
+        diagnostics: (n: number, ms: number) => `AI analysis · ${n} tool calls · ${ms}ms`,
+        // checklist
+        auditTitle: (platform: string, brand: string) => `${platform} Audit — ${brand}`,
+        generated: 'Generated',
+        scoreLine: (s: number, g: string) => `Score: ${s}/100 (Grade ${g})`,
+        categoryBreakdown: 'Category Breakdown',
+        category: 'Category',
+        score: 'Score',
+        failedChecks: (n: number) => `❌ Failed Checks (${n})`,
+        warnings: (n: number) => `⚠️  Warnings (${n})`,
+        passedChecks: (n: number) => `✅ Passed Checks (${n})`,
+        category2: 'Category',
+        severity: 'Severity',
+        fix: 'Fix',
+    },
+    es: {
+        aiAnalysis: '🤖 Análisis estratégico AI',
+        noSummary: '_(sin resumen)_',
+        trend: 'Tendencia',
+        topPriorityActions: 'Acciones prioritarias',
+        tiedToChecks: 'Atado a los checks',
+        why: 'Por qué',
+        steps: 'Pasos',
+        expectedImpact: 'Impacto esperado',
+        creativeIdeas: 'Ideas creativas',
+        tags: 'Tags',
+        learnings: 'Aprendizajes registrados',
+        diagnostics: (n: number, ms: number) => `Análisis AI · ${n} llamadas a herramientas · ${ms}ms`,
+        // checklist
+        auditTitle: (platform: string, brand: string) => `Auditoría ${platform} — ${brand}`,
+        generated: 'Generado',
+        scoreLine: (s: number, g: string) => `Puntaje: ${s}/100 (Nota ${g})`,
+        categoryBreakdown: 'Desglose por categoría',
+        category: 'Categoría',
+        score: 'Puntaje',
+        failedChecks: (n: number) => `❌ Checks fallidos (${n})`,
+        warnings: (n: number) => `⚠️  Advertencias (${n})`,
+        passedChecks: (n: number) => `✅ Checks aprobados (${n})`,
+        category2: 'Categoría',
+        severity: 'Severidad',
+        fix: 'Solución',
+    },
+} as const;
+
+export function reportStrings(locale?: string) {
+    const key = (locale ?? 'en').toLowerCase().slice(0, 2);
+    return key === 'es' ? REPORT_STR.es : REPORT_STR.en;
+}
+
 /**
  * Render the agent analysis into the markdown that gets persisted to AuditReport.
  * Caller still adds the deterministic-checks sections (Failed/Warning/Passed) to it.
  */
-export function renderAnalysisMarkdown(a: AuditAnalysis): string {
+export function renderAnalysisMarkdown(a: AuditAnalysis, locale?: string): string {
+    const S = reportStrings(locale);
     const lines: string[] = [];
-    lines.push('## 🤖 AI Strategic Analysis');
+    lines.push(`## ${S.aiAnalysis}`);
     lines.push('');
-    lines.push(a.executiveSummary || '_(no summary)_');
+    lines.push(a.executiveSummary || S.noSummary);
     lines.push('');
 
     if (a.trendNotes) {
-        lines.push(`_Trend: ${a.trendNotes}_`);
+        lines.push(`_${S.trend}: ${a.trendNotes}_`);
         lines.push('');
     }
 
     if (a.topActions.length > 0) {
-        lines.push('### Top Priority Actions');
+        lines.push(`### ${S.topPriorityActions}`);
         lines.push('');
         for (const act of a.topActions) {
             lines.push(`#### ${act.priority}. ${act.title}`);
             if (act.checkRefs?.length) {
-                lines.push(`*Tied to checks*: ${act.checkRefs.join(', ')}`);
+                lines.push(`*${S.tiedToChecks}*: ${act.checkRefs.join(', ')}`);
             }
             lines.push('');
-            if (act.rationale) lines.push(`**Why**: ${act.rationale}`);
+            if (act.rationale) lines.push(`**${S.why}**: ${act.rationale}`);
             lines.push('');
             if (act.specificSteps?.length) {
-                lines.push('**Steps**:');
+                lines.push(`**${S.steps}**:`);
                 for (const s of act.specificSteps) lines.push(`- ${s}`);
                 lines.push('');
             }
-            if (act.expectedImpact) lines.push(`**Expected impact**: ${act.expectedImpact}`);
+            if (act.expectedImpact) lines.push(`**${S.expectedImpact}**: ${act.expectedImpact}`);
             lines.push('');
         }
     }
 
     if (a.creativeIdeas && a.creativeIdeas.length > 0) {
-        lines.push('### Creative Ideas');
+        lines.push(`### ${S.creativeIdeas}`);
         lines.push('');
         for (const idea of a.creativeIdeas) {
             lines.push(`**${idea.format}** — ${idea.concept}`);
@@ -536,19 +616,19 @@ export function renderAnalysisMarkdown(a: AuditAnalysis): string {
             }
             if (idea.hashtagSuggestion?.length) {
                 lines.push('');
-                lines.push(`Tags: ${idea.hashtagSuggestion.map((h) => `#${h.replace(/^#/, '')}`).join(' ')}`);
+                lines.push(`${S.tags}: ${idea.hashtagSuggestion.map((h) => `#${h.replace(/^#/, '')}`).join(' ')}`);
             }
             lines.push('');
         }
     }
 
     if (a.learnings && a.learnings.length > 0) {
-        lines.push('### Learnings recorded');
+        lines.push(`### ${S.learnings}`);
         for (const l of a.learnings) lines.push(`- ${l}`);
         lines.push('');
     }
 
-    lines.push(`<sub>AI analysis · ${a.toolCalls} tool calls · ${a.durationMs}ms</sub>`);
+    lines.push(`<sub>${S.diagnostics(a.toolCalls, a.durationMs)}</sub>`);
     lines.push('');
     return lines.join('\n');
 }

@@ -28,11 +28,11 @@ const VALID_PLATFORMS: AuditPlatform[] = [
 
 export async function auditsRoutes(fastify: FastifyInstance) {
     // ── POST /audits ────────────────────────────────────────────────────────
-    fastify.post<{ Body: { brandId: string; platform: AuditPlatform } }>(
+    fastify.post<{ Body: { brandId: string; platform: AuditPlatform; locale?: string } }>(
         '/audits',
         { preHandler: requireAuth },
         async (req, reply) => {
-            const { brandId, platform } = req.body;
+            const { brandId, platform, locale } = req.body;
 
             if (!brandId || !platform) {
                 return reply.status(400).send({ error: 'brandId and platform required' });
@@ -63,11 +63,14 @@ export async function auditsRoutes(fastify: FastifyInstance) {
                 },
             });
 
-            // Enqueue background job
+            // Enqueue background job. Pass through the requested locale so the
+            // worker generates the report in the user's language. Falls back to
+            // 'en' inside the worker if not provided.
             await auditQueue.add('run-audit', {
                 auditRunId: auditRun.id,
                 brandId,
                 platform,
+                locale: locale === 'es' ? 'es' : 'en',
                 triggeredBy: userId,
             }, {
                 jobId: auditRun.id,
